@@ -1,0 +1,212 @@
+// Prisma Schema — AgroSemen
+// Banco: PostgreSQL (VM Oracle)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// CONTA (tenant principal — fazenda/empresa)
+// ─────────────────────────────────────────
+model Conta {
+  id                   String   @id @default(uuid())
+  nome                 String
+  slug                 String   @unique // URL do catálogo público
+  whatsappCatalogo     String?
+  perfil               Perfil   @default(USO_PROPRIO)
+  estoqueMinAlerta     Int      @default(5)
+  valorPadraoCon       Decimal  @default(0) @db.Decimal(10, 2)
+  valorPadraoSex       Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt            DateTime @default(now())
+
+  usuarios             Usuario[]
+  touros               Touro[]
+  clientes             Cliente[]
+  inseminacoes         Inseminacao[]
+  intencoesReserva     IntencaoReserva[]
+
+  @@map("contas")
+}
+
+// ─────────────────────────────────────────
+// USUARIO
+// ─────────────────────────────────────────
+model Usuario {
+  id              String   @id @default(uuid())
+  contaId         String
+  nome            String
+  telefone        String
+  pinHash         String
+  papel           Papel    @default(USUARIO)
+  ativo           Boolean  @default(true)
+  inviteToken     String?  @unique
+  inviteExpiresAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  conta           Conta     @relation(fields: [contaId], references: [id])
+  inseminacoes    Inseminacao[]
+  syncMetadata    SyncMetadata[]
+
+  @@unique([telefone, contaId])
+  @@map("usuarios")
+}
+
+// ─────────────────────────────────────────
+// TOURO
+// ─────────────────────────────────────────
+model Touro {
+  id                String    @id @default(uuid())
+  contaId           String
+  nome              String
+  codigoRegistro    String?
+  raca              String
+  empresaFornecedora String?
+  fotoUrl           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  conta             Conta     @relation(fields: [contaId], references: [id])
+  lotes             LoteSemen[]
+  inseminacoes      Inseminacao[]
+  intencoesReserva  IntencaoReserva[]
+
+  @@map("touros")
+}
+
+// ─────────────────────────────────────────
+// LOTE DE SÊMEN
+// ─────────────────────────────────────────
+model LoteSemen {
+  id              String     @id @default(uuid())
+  touroId         String
+  contaId         String
+  tipo            TipoSemen
+  quantidade      Int        @default(0)
+  valorUnitario   Decimal    @default(0) @db.Decimal(10, 2)
+  codigoPalheta   String?
+  caneca          String?
+  botijao         String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  touro           Touro      @relation(fields: [touroId], references: [id])
+  inseminacoes    Inseminacao[]
+
+  @@map("lotes_semen")
+}
+
+// ─────────────────────────────────────────
+// CLIENTE
+// ─────────────────────────────────────────
+model Cliente {
+  id          String    @id @default(uuid())
+  contaId     String
+  nome        String
+  telefone    String?
+  fazenda     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  conta        Conta     @relation(fields: [contaId], references: [id])
+  inseminacoes Inseminacao[]
+
+  @@map("clientes")
+}
+
+// ─────────────────────────────────────────
+// INSEMINAÇÃO
+// ─────────────────────────────────────────
+model Inseminacao {
+  id                String    @id @default(uuid())
+  contaId           String
+  touroId           String
+  loteSemenId       String
+  usuarioId         String
+  clienteId         String?
+  identificacaoVaca String?
+  valorCobrado      Decimal?  @db.Decimal(10, 2)
+  nota              String?
+  dataInseminacao   DateTime  // normalizado para 00:00h no dia
+  isDirty           Boolean   @default(false)
+  syncedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  conta     Conta     @relation(fields: [contaId], references: [id])
+  touro     Touro     @relation(fields: [touroId], references: [id])
+  loteSemen LoteSemen @relation(fields: [loteSemenId], references: [id])
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+  cliente   Cliente?  @relation(fields: [clienteId], references: [id])
+
+  @@map("inseminacoes")
+}
+
+// ─────────────────────────────────────────
+// INTENÇÃO DE RESERVA (catálogo público)
+// ─────────────────────────────────────────
+model IntencaoReserva {
+  id               String          @id @default(uuid())
+  contaId          String
+  touroId          String
+  nomeComprador    String
+  telefoneComprador String?
+  tipoSemen        TipoSemen
+  status           StatusReserva   @default(PENDENTE)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  conta  Conta @relation(fields: [contaId], references: [id])
+  touro  Touro @relation(fields: [touroId], references: [id])
+
+  @@map("intencoes_reserva")
+}
+
+// ─────────────────────────────────────────
+// SYNC METADATA (controle de sincronização offline)
+// ─────────────────────────────────────────
+model SyncMetadata {
+  id           String   @id @default(uuid())
+  usuarioId    String
+  deviceId     String
+  lastSyncedAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@unique([usuarioId, deviceId])
+  @@map("sync_metadata")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+enum Perfil {
+  USO_PROPRIO
+  PRESTADOR
+}
+
+enum Papel {
+  ADMIN
+  USUARIO
+}
+
+enum TipoSemen {
+  CONVENCIONAL
+  SEXADO_MACHO
+  SEXADO_FEMEA
+}
+
+enum StatusReserva {
+  PENDENTE
+  ATENDIDO
+  CANCELADO
+}

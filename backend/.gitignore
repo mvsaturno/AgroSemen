@@ -1,0 +1,6 @@
+# AgroSemen Backend — .gitignore
+node_modules/
+dist/
+.env
+uploads/
+*.log

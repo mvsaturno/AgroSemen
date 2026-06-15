@@ -1,0 +1,65 @@
+# ─── Node / npm ───────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ─── TypeScript ────────────────────────────────────────────────
+dist/
+*.tsbuildinfo
+
+# ─── Ambiente / Secrets ────────────────────────────────────────
+.env
+.env.local
+.env.production
+!.env.example
+
+# ─── Expo / React Native ───────────────────────────────────────
+.expo/
+.expo-shared/
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# ─── Prisma ────────────────────────────────────────────────────
+# Manter o schema, ignorar o client gerado
+backend/node_modules/.prisma/
+
+# ─── Uploads (arquivos de usuários) ───────────────────────────
+backend/uploads/
+mobile/uploads/
+
+# ─── Drizzle generated ────────────────────────────────────────
+drizzle/
+
+# ─── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Sistema Operacional ──────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# ─── IDEs ─────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Expo Build Artifacts ─────────────────────────────────────
+*.apk
+*.ipa
+*.aab
