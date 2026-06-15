@@ -2,8 +2,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Para emulador Android (desenvolvimento local): 'http://10.0.2.2:3000'
-// Para device físico ou build de teste: 'http://163.176.47.4:3000'
-export const BASE_URL = 'http://163.176.47.4:3000';
+// Para device físico ou build de teste (passando pelo proxy reverso do Nginx na porta 80):
+export const BASE_URL = 'http://163.176.47.4/api';
 
 export const api = axios.create({
   baseURL: BASE_URL,
