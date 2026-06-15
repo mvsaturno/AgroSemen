@@ -47,23 +47,36 @@ export default function RootLayout() {
 
   const hydrated = useHydration();
 
+  const [appIsReady, setAppIsReady] = useState(false);
+
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
   useEffect(() => {
-    if (loaded && hydrated) {
-      try {
-        initializeDb();
-      } catch (dbError) {
-        console.error('Failed to initialize SQLite database on boot:', dbError);
+    async function prepare() {
+      if (loaded && hydrated) {
+        try {
+          initializeDb();
+        } catch (dbError) {
+          console.error('Failed to initialize SQLite database on boot:', dbError);
+        }
+        // Exibe o splash screen por no mínimo 2 segundos para dar uma sensação premium
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setAppIsReady(true);
       }
-      SplashScreen.hideAsync();
     }
+    prepare();
   }, [loaded, hydrated]);
 
-  if (!loaded || !hydrated) {
+  useEffect(() => {
+    if (appIsReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [appIsReady]);
+
+  if (!loaded || !hydrated || !appIsReady) {
     return null;
   }
 
