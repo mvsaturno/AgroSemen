@@ -26,7 +26,6 @@ rsync -avz --progress \
   --exclude='.env' \
   --exclude='node_modules/' \
   --exclude='.git/' \
-  --exclude='dist/' \
   "$LOCAL_PATH/" \
   "${VM_HOST}:${VM_PATH}/"
 
