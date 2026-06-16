@@ -31,7 +31,18 @@ export default function RegisterScreen() {
       await api.post('/auth/send-code', { telefone });
       setStep('VERIFY_CODE');
     } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.error || 'Erro ao enviar código de verificação. Verifique o número e sua conexão.');
+      const msg = error.response?.data?.error || 'Erro ao enviar código de verificação. Verifique o número e sua conexão.';
+      const isJaCadastrado = error.response?.status === 409;
+      Alert.alert(
+        isJaCadastrado ? 'Número já cadastrado' : 'Erro',
+        msg,
+        isJaCadastrado
+          ? [
+              { text: 'Fazer Login', onPress: () => router.replace('/login') },
+              { text: 'Cancelar', style: 'cancel' },
+            ]
+          : [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }

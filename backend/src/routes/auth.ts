@@ -17,6 +17,27 @@ function generateSlug(nome: string): string {
     .substring(0, 50) + '-' + uuidv4().substring(0, 6)
 }
 
+// Helper para normalizar telefone para formato E.164 (+55XXXXXXXXXXX)
+// Aceita: (51) 98182-7578 | 51981827578 | +5551981827578 | 981827578
+function normalizeTelefone(telefone: string): string {
+  // Remove tudo que não é dígito ou '+'
+  let digits = telefone.replace(/[^\d]/g, '')
+  // Se tem 8 ou 9 dígitos: só o número local (sem DDD) — improvável mas trata
+  if (digits.length <= 9) {
+    digits = '55' + digits
+  }
+  // Se começa com 55 e tem 12 ou 13 dígitos: já tem código do país
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    return '+' + digits
+  }
+  // Se tem 10 ou 11 dígitos: número brasileiro com DDD, sem código de país
+  if (digits.length === 10 || digits.length === 11) {
+    return '+55' + digits
+  }
+  // Fallback: retorna com +55 prefixado
+  return '+55' + digits
+}
+
 export default async function authRoutes(app: FastifyInstance) {
   const verificationCodes = new Map<string, { code: string; expiresAt: number }>()
 
@@ -31,12 +52,12 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.issues[0].message })
     }
 
-    const { telefone } = parsed.data
+    const telefone = normalizeTelefone(parsed.data.telefone)
 
-    // Verifica se já existe usuário com esse telefone
+    // Verifica se já existe usuário com esse telefone (comparação normalizada)
     const existing = await prisma.usuario.findFirst({ where: { telefone } })
     if (existing) {
-      return reply.status(409).send({ error: 'Este número de telefone já está cadastrado.' })
+      return reply.status(409).send({ error: 'Este número de telefone já está cadastrado. Faça login.' })
     }
 
     // Gera código de 6 dígitos
@@ -71,9 +92,10 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: parsed.error.issues[0].message })
     }
 
-    const { nomeConta, nomeUsuario, telefone, pin, code, perfil } = parsed.data
+    const { nomeConta, nomeUsuario, pin, code, perfil } = parsed.data
+    const telefone = normalizeTelefone(parsed.data.telefone)
 
-    // Valida o código de verificação
+    // Valida o código de verificação (usa o telefone normalizado como chave)
     const cached = verificationCodes.get(telefone)
     if (!cached || cached.code !== code || cached.expiresAt < Date.now()) {
       return reply.status(400).send({ error: 'Código de verificação inválido ou expirado.' })
@@ -150,7 +172,8 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Telefone e PIN são obrigatórios.' })
     }
 
-    const { telefone, pin } = parsed.data
+    const telefone = normalizeTelefone(parsed.data.telefone)
+    const { pin } = parsed.data
 
     const usuario = await prisma.usuario.findFirst({
       where: { telefone, ativo: true },
