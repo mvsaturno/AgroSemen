@@ -10,7 +10,7 @@ set -euo pipefail
 # Diretório de origem (a pasta montada do Windows)
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Diretório de destino (diretório nativo da VM Linux, sem problemas de NTFS/EPERM)
-DEST_DIR="/opt/agrosemen/backend"
+DEST_DIR="/home/saturno/agrosemen-backend-native"
 
 echo ""
 echo "============================================================"
@@ -31,6 +31,12 @@ rsync -av --delete \
   --exclude='.git/' \
   --exclude='dist/' \
   "$SRC_DIR/" "$DEST_DIR/"
+
+# Se o arquivo .env não existir no destino nativo, copia o da pasta montada
+if [ ! -f "$DEST_DIR/.env" ]; then
+  echo "Copiando .env da pasta montada para a pasta nativa..."
+  cp "$SRC_DIR/.env" "$DEST_DIR/.env" || true
+fi
 
 # Navega para o diretório de destino nativo
 cd "$DEST_DIR"
