@@ -38,6 +38,12 @@ if [ ! -f "$DEST_DIR/.env" ]; then
   cp "$SRC_DIR/.env" "$DEST_DIR/.env" || true
 fi
 
+# Ajusta a porta do PostgreSQL no .env para 5432 de dentro da VM (caso esteja 5433 vindo do Windows)
+if [ -f "$DEST_DIR/.env" ]; then
+  echo "Ajustando porta do banco de dados para 5432 (interno da VM)..."
+  sed -i 's/:5433\//:5432\//g' "$DEST_DIR/.env" || true
+fi
+
 # Navega para o diretório de destino nativo
 cd "$DEST_DIR"
 
