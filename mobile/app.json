@@ -25,6 +25,7 @@
       },
       "package": "com.agrosemen.app",
       "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true,
       "statusBar": {
         "backgroundColor": "#1B5E20",
         "style": "light"
