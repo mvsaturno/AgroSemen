@@ -19,14 +19,18 @@ export default function LoginScreen() {
       Alert.alert('Erro', 'Preencha o telefone e o PIN.');
       return;
     }
+    if (pin.length !== 4) {
+      Alert.alert('Erro', 'O PIN deve ter exatamente 4 dígitos numéricos.');
+      return;
+    }
 
     setLoading(true);
     try {
       const netInfo = await NetInfo.fetch();
-      
+
       if (!netInfo.isConnected) {
         // Validação offline
-        if (authUser && authUser.telefone === telefone) {
+        if (authUser && authUser.telefone) {
           const isValid = await bcrypt.compare(pin, authUser.pinHash);
           if (isValid) {
             loginStore({ usuario: authUser, conta: useAuthStore.getState().conta });
@@ -34,22 +38,35 @@ export default function LoginScreen() {
             Alert.alert('Erro', 'PIN incorreto (Modo Offline).');
           }
         } else {
-          Alert.alert('Erro', 'Sem conexão e usuário não encontrado localmente.');
+          Alert.alert('Sem Conexão', 'Você está offline. Conecte-se à internet para fazer login pela primeira vez.');
         }
         setLoading(false);
         return;
       }
 
       // Login Online
-      const response = await api.post('/auth/login', {
-        telefone,
-        pin,
-      });
-
+      const response = await api.post('/auth/login', { telefone, pin });
       await loginStore(response.data);
-      
+
     } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.error || 'Erro ao realizar login.');
+      // Distingue erro de rede de erro do servidor
+      if (!error.response) {
+        // Sem resposta = problema de rede (servidor inacessível, timeout, DNS, etc.)
+        const msg = error.message || '';
+        if (msg.includes('timeout') || msg.includes('Timeout')) {
+          Alert.alert('Tempo Esgotado', 'O servidor demorou a responder. Verifique sua conexão e tente novamente.');
+        } else {
+          Alert.alert(
+            'Sem Conexão com o Servidor',
+            `Não foi possível alcançar o servidor.\n\nDetalhes: ${msg}`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // Erro HTTP do servidor (401, 400, etc.)
+        const serverMsg = error.response?.data?.error || 'Erro ao realizar login.';
+        Alert.alert('Erro', serverMsg);
+      }
     } finally {
       setLoading(false);
     }

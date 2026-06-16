@@ -19,7 +19,7 @@ function generateSlug(nome: string): string {
 
 // Helper para normalizar telefone para formato E.164 (+55XXXXXXXXXXX)
 // Aceita: (51) 98182-7578 | 51981827578 | +5551981827578 | 981827578
-function normalizeTelefone(telefone: string): string {
+export function normalizeTelefone(telefone: string): string {
   // Remove tudo que não é dígito ou '+'
   let digits = telefone.replace(/[^\d]/g, '')
   // Se tem 8 ou 9 dígitos: só o número local (sem DDD) — improvável mas trata

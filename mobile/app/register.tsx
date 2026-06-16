@@ -31,18 +31,27 @@ export default function RegisterScreen() {
       await api.post('/auth/send-code', { telefone });
       setStep('VERIFY_CODE');
     } catch (error: any) {
-      const msg = error.response?.data?.error || 'Erro ao enviar código de verificação. Verifique o número e sua conexão.';
-      const isJaCadastrado = error.response?.status === 409;
-      Alert.alert(
-        isJaCadastrado ? 'Número já cadastrado' : 'Erro',
-        msg,
-        isJaCadastrado
-          ? [
-              { text: 'Fazer Login', onPress: () => router.replace('/login') },
-              { text: 'Cancelar', style: 'cancel' },
-            ]
-          : [{ text: 'OK' }]
-      );
+      if (!error.response) {
+        // Erro de rede — servidor inacessível
+        Alert.alert(
+          'Sem Conexão com o Servidor',
+          `Não foi possível alcançar o servidor. Verifique sua conexão Wi-Fi ou dados móveis.\n\nDetalhes técnicos: ${error.message}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        const msg = error.response?.data?.error || 'Erro ao enviar código de verificação.';
+        const isJaCadastrado = error.response?.status === 409;
+        Alert.alert(
+          isJaCadastrado ? 'Número já cadastrado' : 'Erro',
+          msg,
+          isJaCadastrado
+            ? [
+                { text: 'Fazer Login', onPress: () => router.replace('/login') },
+                { text: 'Cancelar', style: 'cancel' },
+              ]
+            : [{ text: 'OK' }]
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -72,9 +81,18 @@ export default function RegisterScreen() {
       Alert.alert('Sucesso', 'Conta criada! Bem-vindo(a) ao AgroSêmen.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') }
       ]);
-      
+
     } catch (error: any) {
-      Alert.alert('Erro', error.response?.data?.error || 'Erro ao criar conta. Código incorreto ou expirado.');
+      if (!error.response) {
+        Alert.alert(
+          'Sem Conexão com o Servidor',
+          `Não foi possível alcançar o servidor.\n\nDetalhes: ${error.message}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        const msg = error.response?.data?.error || 'Código incorreto ou expirado. Tente novamente.';
+        Alert.alert('Erro', msg);
+      }
     } finally {
       setLoading(false);
     }
