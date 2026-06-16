@@ -1,36 +1,55 @@
 #!/bin/bash
 # =============================================================================
-# AgroSemen — Deploy Local do Backend de dentro da VM
-# Executar este script de DENTRO da VM
+# AgroSemen — Deploy Local do Backend de dentro da VM (Evitando erro de EPERM no Mount)
+# Executar este script de DENTRO da VM na pasta montada:
+# /mnt/c/Users/mv_sa/Documents/Development/AgroSemen/backend
 # =============================================================================
 
 set -euo pipefail
 
-# Pasta onde este script está localizado
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Diretório de origem (a pasta montada do Windows)
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Diretório de destino (diretório nativo da VM Linux, sem problemas de NTFS/EPERM)
+DEST_DIR="/opt/agrosemen/backend"
 
 echo ""
-echo "============================================="
-echo "⚙️  Iniciando deploy local do backend na VM..."
-echo "============================================="
+echo "============================================================"
+echo "⚙️  Deploy Local VM: Copiando para diretório nativo Linux..."
+echo "============================================================"
+echo "Origem: $SRC_DIR"
+echo "Destino: $DEST_DIR"
 echo ""
 
-# 1. Instalar dependências completas (para ter o TypeScript/tsc)
-echo "[1/4] Instalando dependências (incluindo devDependencies)..."
+# Garante que o diretório de destino existe e tem permissões corretas
+mkdir -p "$DEST_DIR"
+
+# 1. Copiar arquivos usando rsync local (exclui node_modules, .env, dist)
+echo "[1/5] Sincronizando arquivos para a partição Linux nativa..."
+rsync -av --delete \
+  --exclude='.env' \
+  --exclude='node_modules/' \
+  --exclude='.git/' \
+  --exclude='dist/' \
+  "$SRC_DIR/" "$DEST_DIR/"
+
+# Navega para o diretório de destino nativo
+cd "$DEST_DIR"
+
+# 2. Instalar dependências completas no diretório nativo
+echo "[2/5] Instalando dependências (incluindo devDependencies)..."
 npm install
 
-# 2. Compilar TypeScript
-echo "[2/4] Compilando TypeScript (src -> dist)..."
+# 3. Compilar TypeScript
+echo "[3/5] Compilando TypeScript (src -> dist)..."
 npm run build
 
-# 3. Gerar Prisma Client e rodar migrations
-echo "[3/4] Atualizando Prisma e banco de dados..."
+# 4. Gerar Prisma Client e rodar migrations
+echo "[4/5] Atualizando Prisma e banco de dados..."
 npx prisma generate
 npx prisma migrate deploy
 
-# 4. Reiniciar a API no PM2
-echo "[4/4] Reiniciando serviço no PM2..."
+# 5. Reiniciar a API no PM2
+echo "[5/5] Reiniciando serviço no PM2..."
 if pm2 list | grep -q "agrosemen-api"; then
   echo "Recarregando processo PM2 existente..."
   pm2 reload agrosemen-api
@@ -41,7 +60,7 @@ else
 fi
 
 echo ""
-echo "============================================="
-echo "✅ Backend atualizado e rodando localmente na VM!"
-echo "============================================="
+echo "============================================================"
+echo "✅ Backend atualizado e rodando em: $DEST_DIR"
+echo "============================================================"
 echo ""
