@@ -20,6 +20,26 @@ function generateSlug(nome) {
         .replace(/^-|-$/g, '')
         .substring(0, 50) + '-' + (0, uuid_1.v4)().substring(0, 6);
 }
+// Helper para normalizar telefone para formato E.164 (+55XXXXXXXXXXX)
+// Aceita: (51) 98182-7578 | 51981827578 | +5551981827578 | 981827578
+function normalizeTelefone(telefone) {
+    // Remove tudo que não é dígito ou '+'
+    let digits = telefone.replace(/[^\d]/g, '');
+    // Se tem 8 ou 9 dígitos: só o número local (sem DDD) — improvável mas trata
+    if (digits.length <= 9) {
+        digits = '55' + digits;
+    }
+    // Se começa com 55 e tem 12 ou 13 dígitos: já tem código do país
+    if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+        return '+' + digits;
+    }
+    // Se tem 10 ou 11 dígitos: número brasileiro com DDD, sem código de país
+    if (digits.length === 10 || digits.length === 11) {
+        return '+55' + digits;
+    }
+    // Fallback: retorna com +55 prefixado
+    return '+55' + digits;
+}
 async function authRoutes(app) {
     const verificationCodes = new Map();
     // ─── POST /auth/send-code ──────────────────────────────────────────────────
@@ -31,11 +51,11 @@ async function authRoutes(app) {
         if (!parsed.success) {
             return reply.status(400).send({ error: parsed.error.issues[0].message });
         }
-        const { telefone } = parsed.data;
-        // Verifica se já existe usuário com esse telefone
+        const telefone = normalizeTelefone(parsed.data.telefone);
+        // Verifica se já existe usuário com esse telefone (comparação normalizada)
         const existing = await database_1.default.usuario.findFirst({ where: { telefone } });
         if (existing) {
-            return reply.status(409).send({ error: 'Este número de telefone já está cadastrado.' });
+            return reply.status(409).send({ error: 'Este número de telefone já está cadastrado. Faça login.' });
         }
         // Gera código de 6 dígitos
         const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -63,8 +83,9 @@ async function authRoutes(app) {
         if (!parsed.success) {
             return reply.status(400).send({ error: parsed.error.issues[0].message });
         }
-        const { nomeConta, nomeUsuario, telefone, pin, code, perfil } = parsed.data;
-        // Valida o código de verificação
+        const { nomeConta, nomeUsuario, pin, code, perfil } = parsed.data;
+        const telefone = normalizeTelefone(parsed.data.telefone);
+        // Valida o código de verificação (usa o telefone normalizado como chave)
         const cached = verificationCodes.get(telefone);
         if (!cached || cached.code !== code || cached.expiresAt < Date.now()) {
             return reply.status(400).send({ error: 'Código de verificação inválido ou expirado.' });
@@ -132,7 +153,8 @@ async function authRoutes(app) {
         if (!parsed.success) {
             return reply.status(400).send({ error: 'Telefone e PIN são obrigatórios.' });
         }
-        const { telefone, pin } = parsed.data;
+        const telefone = normalizeTelefone(parsed.data.telefone);
+        const { pin } = parsed.data;
         const usuario = await database_1.default.usuario.findFirst({
             where: { telefone, ativo: true },
             include: { conta: true },
