@@ -122,6 +122,13 @@ export default function TabLayout() {
           title: 'Clientes',
         }}
       />
+      <Tabs.Screen
+        name="pedidos"
+        options={{
+          href: null,
+          title: 'Pedidos do Catálogo',
+        }}
+      />
     </Tabs>
   );
 }

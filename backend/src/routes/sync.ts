@@ -48,6 +48,11 @@ interface SyncPushPayload {
     deletedAt?: string | null
     updatedAt: string
   }>
+  intencoesReserva?: Array<{
+    id: string
+    status: 'PENDENTE' | 'ATENDIDA' | 'CANCELADA'
+    updatedAt: string
+  }>
 }
 
 export default async function syncRoutes(app: FastifyInstance) {
@@ -65,6 +70,7 @@ export default async function syncRoutes(app: FastifyInstance) {
         touros: z.array(z.any()).optional().default([]),
         lotes: z.array(z.any()).optional().default([]),
         clientes: z.array(z.any()).optional().default([]),
+        intencoesReserva: z.array(z.any()).optional().default([]),
       }).optional().default({}),
     })
 
@@ -219,8 +225,23 @@ export default async function syncRoutes(app: FastifyInstance) {
       }
     }
 
+    // Intenções de Reserva (Aprovar/Rejeitar)
+    for (const r of pushData.intencoesReserva || []) {
+      try {
+        const existente = await prisma.intencaoReserva.findUnique({ where: { id: r.id } })
+        if (existente && new Date(r.updatedAt) > existente.updatedAt) {
+          await prisma.intencaoReserva.update({
+            where: { id: r.id },
+            data: { status: r.status },
+          })
+        }
+      } catch (e) {
+        errors.push(`IntençãoReserva ${r.id}: ${e}`)
+      }
+    }
+
     // ── PULL: retorna delta desde last_synced_at ──────────────────────────
-    const [touros, lotes, clientes, inseminacoes] = await Promise.all([
+    const [touros, lotes, clientes, inseminacoes, intencoesReserva] = await Promise.all([
       prisma.touro.findMany({
         where: { contaId, updatedAt: { gt: since } },
         include: { lotes: { where: { updatedAt: { gt: since } } } },
@@ -240,6 +261,12 @@ export default async function syncRoutes(app: FastifyInstance) {
           usuario: { select: { nome: true } },
         },
       }),
+      prisma.intencaoReserva.findMany({
+        where: { contaId, updatedAt: { gt: since } },
+        include: {
+          touro: { select: { nome: true, raca: true } },
+        }
+      })
     ])
 
     // Atualiza metadata de sync do dispositivo
@@ -252,7 +279,7 @@ export default async function syncRoutes(app: FastifyInstance) {
     return reply.send({
       syncedAt: syncAt.toISOString(),
       errors: errors.length > 0 ? errors : undefined,
-      pull: { touros, lotes, clientes, inseminacoes },
+      pull: { touros, lotes, clientes, inseminacoes, intencoesReserva },
     })
   })
 }

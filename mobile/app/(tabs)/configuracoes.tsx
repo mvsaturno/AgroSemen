@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Share } from 'react-native';
 import { useAuthStore } from '../../src/store';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api/client';
 import { Ionicons } from '@expo/vector-icons';
+import { db } from '../../src/database';
+import { touro, loteSemen } from '../../src/database/schema';
+import { exportToCSV } from '../../src/utils/exportCsv';
+import { isNull } from 'drizzle-orm';
 
 export default function ConfiguracoesScreen() {
   const logout = useAuthStore(state => state.logout);
@@ -16,6 +20,7 @@ export default function ConfiguracoesScreen() {
   );
   const [whatsapp, setWhatsapp] = useState(authConta?.whatsappCatalogo ?? '');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [gerandoLink, setGerandoLink] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -83,6 +88,73 @@ export default function ConfiguracoesScreen() {
       Alert.alert('Erro', error.response?.data?.error || 'Não foi possível salvar as configurações.');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleExportarEstoque = async () => {
+    try {
+      const touros = await db.select().from(touro).where(isNull(touro.deletedAt));
+      const lotes = await db.select().from(loteSemen).where(isNull(loteSemen.deletedAt));
+
+      if (touros.length === 0) {
+        Alert.alert('Aviso', 'Não há touros no estoque para exportar.');
+        return;
+      }
+
+      const dadosExportacao = touros.map(t => {
+        const lotesTouro = lotes.filter(l => l.touroId === t.id);
+        const getQtd = (tipo: string) => {
+          const l = lotesTouro.find(x => x.tipo === tipo);
+          return l ? l.quantidade : 0;
+        };
+        const getValor = (tipo: string) => {
+          const l = lotesTouro.find(x => x.tipo === tipo);
+          return l ? l.valorUnitario : 0;
+        };
+
+        const con = getQtd('CONVENCIONAL');
+        const macho = getQtd('SEXADO_MACHO');
+        const femea = getQtd('SEXADO_FEMEA');
+
+        const base: any = {
+          "Touro": t.nome,
+          "Raça": t.raca || '-',
+          "Central": t.empresaFornecedora || '-',
+          "Convencional (Qtd)": con,
+          "Sexado Macho (Qtd)": macho,
+          "Sexado Fêmea (Qtd)": femea,
+          "Total de Doses": con + macho + femea,
+        };
+
+        if (authConta?.perfil === 'PRESTADOR') {
+           base["Valor Conv. (R$)"] = getValor('CONVENCIONAL');
+           base["Valor Macho (R$)"] = getValor('SEXADO_MACHO');
+           base["Valor Fêmea (R$)"] = getValor('SEXADO_FEMEA');
+        }
+
+        return base;
+      });
+
+      const fileName = `Inventario_Estoque_${new Date().getTime()}`;
+      await exportToCSV(dadosExportacao, fileName);
+    } catch (e: any) {
+      Alert.alert('Erro', e.message || 'Falha na exportação do estoque.');
+    }
+  };
+
+  const handleGerarLinkCatalogo = async () => {
+    setGerandoLink(true);
+    try {
+      const res = await api.post('/catalogo/gerar-link');
+      const { link } = res.data;
+      await Share.share({
+        message: `Veja o meu catálogo de touros disponíveis para reserva no AgroSêmen! (Link válido por 24h)\n\n${link}`,
+        title: 'Catálogo AgroSêmen',
+      });
+    } catch (e: any) {
+      Alert.alert('Erro', e.response?.data?.error || 'Falha ao gerar link do catálogo. Verifique sua conexão e tente novamente após sincronizar.');
+    } finally {
+      setGerandoLink(false);
     }
   };
 
@@ -181,6 +253,44 @@ export default function ConfiguracoesScreen() {
         >
           <Ionicons name="people-outline" size={24} color="#374151" />
           <Text className="font-bold text-gray-800 text-lg ml-3">Gerenciar clientes</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+        <Text className="font-bold text-gray-900 text-lg mb-3">Backup e Exportação</Text>
+        <Text className="text-gray-500 text-sm mb-4">
+          Gere uma planilha Excel (.csv) com todo o seu inventário atual de sêmen.
+        </Text>
+        <TouchableOpacity 
+          className="flex-row items-center border border-gray-200 p-4 rounded-xl bg-surface-background"
+          onPress={handleExportarEstoque}
+        >
+          <Ionicons name="download-outline" size={24} color="#374151" />
+          <Text className="font-bold text-gray-800 text-lg ml-3">Exportar Estoque (CSV)</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+        <Text className="font-bold text-gray-900 text-lg mb-3">Catálogo Digital</Text>
+        <Text className="text-gray-500 text-sm mb-4">
+          Gere um link temporário (válido por 24h) com seu estoque para compartilhar com fazendeiros. Eles poderão reservar doses que bloquearão seu saldo virtualmente.
+        </Text>
+        
+        <TouchableOpacity 
+          className="flex-row items-center justify-center py-4 rounded-xl bg-blue-600 shadow-sm mb-3"
+          onPress={handleGerarLinkCatalogo}
+          disabled={gerandoLink}
+        >
+          <Ionicons name="link-outline" size={24} color="#FFF" />
+          <Text className="font-bold text-white text-lg ml-3">{gerandoLink ? 'Gerando Link...' : 'Gerar e Compartilhar Link'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          className="flex-row items-center border border-gray-200 p-4 rounded-xl bg-surface-background"
+          onPress={() => router.push('/pedidos' as any)}
+        >
+          <Ionicons name="list-outline" size={24} color="#374151" />
+          <Text className="font-bold text-gray-800 text-lg ml-3">Ver Pedidos Recebidos</Text>
         </TouchableOpacity>
       </View>
 

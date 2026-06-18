@@ -11,6 +11,9 @@ import { v4 as uuidv4 } from 'uuid';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
+import RacaSelectModal from '../../components/RacaSelectModal';
+import ImportCsvModal from '../../components/ImportCsvModal';
+import { isKnownBreed } from '../../src/constants/breeds';
 
 export default function EntradaEstoqueScreen() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function EntradaEstoqueScreen() {
   const isPrestador = authConta?.perfil === 'PRESTADOR';
 
   const [tab, setTab] = useState<'EXISTENTE' | 'NOVO'>('NOVO');
+  const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [touros, setTouros] = useState<any[]>([]);
   const [selectedTouroId, setSelectedTouroId] = useState('');
 
@@ -40,6 +44,7 @@ export default function EntradaEstoqueScreen() {
   const [raca, setRaca] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [fotoUri, setFotoUri] = useState<string | null>(null);
+  const [racaModalVisible, setRacaModalVisible] = useState(false);
 
   type LoteState = { qtd: string; valor: string; codigo: string; caneca: string; botijao: string };
   const [lotes, setLotes] = useState<Record<string, LoteState>>({
@@ -236,6 +241,10 @@ export default function EntradaEstoqueScreen() {
           </TouchableOpacity>
           <Text className="text-white text-xl font-bold">Entrada de Estoque</Text>
         </View>
+        <TouchableOpacity onPress={() => setCsvModalVisible(true)} className="flex-row items-center bg-white/20 px-3 py-1.5 rounded-full">
+          <Ionicons name="document-text-outline" size={16} color="white" />
+          <Text className="text-white font-bold text-xs ml-1">CSV</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView className="p-4" contentContainerStyle={{ paddingBottom: 100 }}>
@@ -284,7 +293,25 @@ export default function EntradaEstoqueScreen() {
                   <TextInput className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 text-gray-900" value={nome} onChangeText={setNome} />
                   
                   <Text className="text-gray-900 font-bold mb-2">Raça *</Text>
-                  <TextInput className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 text-gray-900" placeholder="Selecionar raça" value={raca} onChangeText={setRaca} />
+                  <TouchableOpacity 
+                    className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 flex-row justify-between items-center"
+                    onPress={() => setRacaModalVisible(true)}
+                  >
+                    <Text className={raca && raca !== 'Outra (Digitar...)' ? "text-gray-900" : "text-gray-400"}>
+                      {raca && raca !== 'Outra (Digitar...)' ? raca : "Selecionar raça"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+
+                  {(raca === 'Outra (Digitar...)' || (raca !== '' && !isKnownBreed(raca))) && (
+                    <TextInput 
+                      className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 text-gray-900" 
+                      placeholder="Digite o nome da raça" 
+                      value={raca === 'Outra (Digitar...)' ? '' : raca} 
+                      onChangeText={setRaca} 
+                      autoFocus
+                    />
+                  )}
                   
                   <Text className="text-gray-900 font-bold mb-2">Central/Empresa fornecedora</Text>
                   <TextInput className="bg-surface-background p-4 rounded-xl border border-gray-200 text-gray-900" value={empresa} onChangeText={setEmpresa} />
@@ -316,6 +343,22 @@ export default function EntradaEstoqueScreen() {
           </>
         )}
       </ScrollView>
+
+      <RacaSelectModal 
+        visible={racaModalVisible}
+        onClose={() => setRacaModalVisible(false)}
+        racaSelecionada={raca}
+        onSelect={setRaca}
+      />
+      
+      <ImportCsvModal 
+        visible={csvModalVisible}
+        onClose={() => setCsvModalVisible(false)}
+        onImportSuccess={() => {
+          carregarTouros();
+          setTab('EXISTENTE');
+        }}
+      />
     </View>
   );
 }

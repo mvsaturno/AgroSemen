@@ -83,3 +83,16 @@ export const syncMetadata = sqliteTable('sync_metadata', {
   deviceId: text('deviceId').notNull(),
   lastSyncedAt: text('lastSyncedAt').notNull(),
 });
+
+export const intencaoReserva = sqliteTable('intencao_reserva', {
+  id: text('id').primaryKey(),
+  contaId: text('contaId').notNull().references(() => conta.id),
+  touroId: text('touroId').notNull().references(() => touro.id),
+  nomeComprador: text('nomeComprador').notNull(),
+  telefoneComprador: text('telefoneComprador'),
+  tipoSemen: text('tipoSemen').notNull(),
+  quantidade: integer('quantidade').notNull().default(1),
+  status: text('status').notNull().default('PENDENTE'),
+  updatedAt: text('updatedAt').notNull(),
+  isDirty: integer('isDirty', { mode: 'boolean' }).notNull().default(false),
+});

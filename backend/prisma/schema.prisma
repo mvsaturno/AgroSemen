@@ -29,6 +29,7 @@ model Conta {
   clientes             Cliente[]
   inseminacoes         Inseminacao[]
   intencoesReserva     IntencaoReserva[]
+  linksCatalogo        LinkCatalogo[]
 
   @@map("contas")
 }
@@ -161,6 +162,7 @@ model IntencaoReserva {
   nomeComprador    String
   telefoneComprador String?
   tipoSemen        TipoSemen
+  quantidade       Int             @default(1)
   status           StatusReserva   @default(PENDENTE)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -169,6 +171,21 @@ model IntencaoReserva {
   touro  Touro @relation(fields: [touroId], references: [id])
 
   @@map("intencoes_reserva")
+}
+
+// ─────────────────────────────────────────
+// LINK DO CATÁLOGO (tokens temporários)
+// ─────────────────────────────────────────
+model LinkCatalogo {
+  id           String   @id @default(uuid())
+  contaId      String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  conta        Conta    @relation(fields: [contaId], references: [id])
+
+  @@map("links_catalogo")
 }
 
 // ─────────────────────────────────────────

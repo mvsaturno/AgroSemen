@@ -2,7 +2,7 @@ import { api } from '../api/client';
 import { db } from '../database';
 import { eq } from 'drizzle-orm';
 import {
-  conta, usuario, touro, loteSemen, cliente, inseminacao, syncMetadata
+  conta, usuario, touro, loteSemen, cliente, inseminacao, syncMetadata, intencaoReserva
 } from '../database/schema';
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../store';
@@ -78,6 +78,11 @@ export class SyncEngine {
         .from(cliente)
         .where(eq(cliente.isDirty, true));
 
+      const reservasDirty = await db
+        .select()
+        .from(intencaoReserva)
+        .where(eq(intencaoReserva.isDirty, true));
+
       // 4. Preparar payload de push
       const push = {
         inseminacoes: inseminacoesDirty.map(i => ({
@@ -122,6 +127,11 @@ export class SyncEngine {
           fazenda: c.fazenda || null,
           updatedAt: c.updatedAt,
           deletedAt: c.deletedAt || null,
+        })),
+        intencoesReserva: reservasDirty.map(r => ({
+          id: r.id,
+          status: r.status,
+          updatedAt: r.updatedAt,
         }))
       };
 
@@ -143,7 +153,8 @@ export class SyncEngine {
           touros: pull.touros?.length || 0,
           lotes: pull.lotes?.length || 0,
           clientes: pull.clientes?.length || 0,
-          inseminacoes: pull.inseminacoes?.length || 0
+          inseminacoes: pull.inseminacoes?.length || 0,
+          intencoesReserva: pull.intencoesReserva?.length || 0
         });
 
         // A. Limpar marcação de dirty local para itens enviados com sucesso
@@ -177,6 +188,14 @@ export class SyncEngine {
               .update(cliente)
               .set({ isDirty: false })
               .where(eq(cliente.id, c.id));
+          }
+        }
+        if (reservasDirty.length > 0) {
+          for (const r of reservasDirty) {
+            await db
+              .update(intencaoReserva)
+              .set({ isDirty: false })
+              .where(eq(intencaoReserva.id, r.id));
           }
         }
 
@@ -263,6 +282,26 @@ export class SyncEngine {
           };
           await db.insert(inseminacao).values(item).onConflictDoUpdate({
             target: inseminacao.id,
+            set: item
+          });
+        }
+
+        // Reservas (Catálogo)
+        for (const r of pull.intencoesReserva || []) {
+          const item = {
+            id: r.id,
+            contaId: r.contaId,
+            touroId: r.touroId,
+            nomeComprador: r.nomeComprador,
+            telefoneComprador: r.telefoneComprador || null,
+            tipoSemen: r.tipoSemen,
+            quantidade: Number(r.quantidade),
+            status: r.status,
+            updatedAt: r.updatedAt,
+            isDirty: false,
+          };
+          await db.insert(intencaoReserva).values(item).onConflictDoUpdate({
+            target: intencaoReserva.id,
             set: item
           });
         }

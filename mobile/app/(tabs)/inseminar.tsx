@@ -83,39 +83,32 @@ export default function InseminarScreen() {
     return `C ${con} / ♂ ${m} / ♀ ${f}`;
   };
 
-  const getLabelTipo = (tipo: string) => {
-    if (tipo === 'CONVENCIONAL') return 'Convencional';
-    if (tipo === 'SEXADO_MACHO') return 'Sexado ♂ (Macho)';
-    if (tipo === 'SEXADO_FEMEA') return 'Sexado ♀ (Fêmea)';
-    return tipo;
+  const getLabelTipo = (lote: any) => {
+    let tipoStr = lote.tipo;
+    if (lote.tipo === 'CONVENCIONAL') tipoStr = 'Convencional';
+    if (lote.tipo === 'SEXADO_MACHO') tipoStr = 'Sexado ♂ (Macho)';
+    if (lote.tipo === 'SEXADO_FEMEA') tipoStr = 'Sexado ♀ (Fêmea)';
+    
+    return `${tipoStr} — Saldo: ${lote.quantidade}`;
   };
 
-  const handleSalvar = async () => {
-    if (!authUser || !authConta) return;
-    if (!selectedTouro || !selectedLote) {
-      Alert.alert('Erro', 'Selecione um touro e um tipo de sêmen válido.');
-      return;
-    }
-
+  const executeSave = async (isoDate: string) => {
     try {
-      const isoDate = parseDateToISO(dataInseminacao);
-
       await db.insert(inseminacao).values({
         id: uuidv4(),
-        contaId: authConta.id,
+        contaId: authConta!.id,
         touroId: selectedTouro,
         loteSemenId: selectedLote,
-        usuarioId: authUser.id,
+        usuarioId: authUser!.id,
         clienteId: selectedCliente || null,
-        identificacaoVaca,
+        identificacaoVaca: identificacaoVaca.trim(),
         valorCobrado: Number(valorCobrado) || 0,
-        dataInseminacao: isoDate, // Salva em ISO no SQLite
-        isDirty: true, // Crucial: marca para ser sincronizado no push
+        dataInseminacao: isoDate,
+        isDirty: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
 
-      // Decrementar lote localmente
       const lotesEncontrados = await db.select().from(loteSemen).where(eq(loteSemen.id, selectedLote)).limit(1);
       if (lotesEncontrados.length > 0) {
         const novaQtd = lotesEncontrados[0].quantidade - 1;
@@ -132,6 +125,50 @@ export default function InseminarScreen() {
     } catch (e) {
       Alert.alert('Erro', 'Não foi possível registrar a inseminação.');
     }
+  };
+
+  const handleSalvar = async () => {
+    if (!authUser || !authConta) return;
+    if (!selectedTouro || !selectedLote) {
+      Alert.alert('Erro', 'Selecione um touro e um tipo de sêmen válido.');
+      return;
+    }
+
+    const loteInfo = todosLotes.find(l => l.id === selectedLote);
+    if (!loteInfo || loteInfo.quantidade <= 0) {
+      Alert.alert('Erro', 'O lote selecionado está sem saldo no estoque.');
+      return;
+    }
+
+    const isoDate = parseDateToISO(dataInseminacao);
+
+    if (identificacaoVaca.trim() !== '') {
+      try {
+        const duplicate = await db.select().from(inseminacao).where(
+          and(
+            eq(inseminacao.identificacaoVaca, identificacaoVaca.trim()),
+            eq(inseminacao.dataInseminacao, isoDate),
+            isNull(inseminacao.deletedAt)
+          )
+        ).limit(1);
+
+        if (duplicate.length > 0) {
+          Alert.alert(
+            'Atenção: Possível Duplicata',
+            'Já existe uma inseminação registrada para esta vaca nesta mesma data. Deseja registrar novamente?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Registrar mesmo assim', onPress: () => executeSave(isoDate) }
+            ]
+          );
+          return;
+        }
+      } catch (e) {
+        console.error("Erro ao checar duplicata", e);
+      }
+    }
+
+    await executeSave(isoDate);
   };
 
   const salvarNovoCliente = async () => {
@@ -181,18 +218,24 @@ export default function InseminarScreen() {
         </View>
 
         <Text className="text-gray-800 text-base mb-2 font-semibold">Tipo de sêmen</Text>
-        <View className="bg-surface-background rounded-xl border border-gray-200 mb-5 overflow-hidden">
-          <Picker
-            selectedValue={selectedLote}
-            onValueChange={(itemValue) => setSelectedLote(itemValue)}
-            enabled={!!selectedTouro}
-          >
-            <Picker.Item label="Selecione um tipo..." value="" color="#9CA3AF" />
-            {lotesVisiveis.map((l) => (
-              <Picker.Item key={l.id} label={getLabelTipo(l.tipo)} value={l.id} />
-            ))}
-          </Picker>
-        </View>
+        {selectedTouro && lotesVisiveis.length === 0 ? (
+          <View className="bg-red-50 p-4 rounded-xl border border-red-200 mb-5">
+            <Text className="text-red-800 text-center font-semibold">Sem saldo de estoque para este touro.</Text>
+          </View>
+        ) : (
+          <View className={`bg-surface-background rounded-xl border border-gray-200 mb-5 overflow-hidden ${!selectedTouro ? 'opacity-50' : ''}`}>
+            <Picker
+              selectedValue={selectedLote}
+              onValueChange={(itemValue) => setSelectedLote(itemValue)}
+              enabled={!!selectedTouro}
+            >
+              <Picker.Item label="Selecione um tipo..." value="" color="#9CA3AF" />
+              {lotesVisiveis.map((l) => (
+                <Picker.Item key={l.id} label={getLabelTipo(l)} value={l.id} />
+              ))}
+            </Picker>
+          </View>
+        )}
 
         <Text className="text-gray-800 text-base mb-2 font-semibold">Cliente / Fazenda</Text>
         <View className="flex-row items-center mb-5">
