@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { db } from '../../src/database';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import EditInseminacaoModal from '../../components/EditInseminacaoModal';
 import { exportToCSV } from '../../src/utils/exportCsv';
 import { Alert } from 'react-native';
+import { SyncEngine } from '../../src/services/syncEngine';
 
 export default function HistoricoScreen() {
   const authConta = useAuthStore(state => state.conta);
@@ -19,6 +20,24 @@ export default function HistoricoScreen() {
   const [periodo, setPeriodo] = useState<'SEMANA' | 'MES' | 'ANO' | 'TUDO'>('MES');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingId, setEditingId] = useState('');
+
+  useEffect(() => {
+    const unsubscribe = SyncEngine.subscribe(() => {
+      console.log('[HistoricoScreen] Sync completed, reloading...');
+      carregarHistorico();
+    });
+    return unsubscribe;
+  }, []);
+
+  const abrirEdicao = (id: string) => {
+    setEditingId(id);
+    setEditModalVisible(true);
+  };
+
+  const fecharEdicao = () => {
+    setEditModalVisible(false);
+    setEditingId('');
+  };
 
   const formatISOToLocale = (isoStr: string): string => {
     try {
@@ -199,11 +218,9 @@ export default function HistoricoScreen() {
             }
             renderItem={({ item }) => (
               <TouchableOpacity 
+                activeOpacity={0.7}
                 className="bg-white p-5 rounded-2xl mb-3 shadow-sm border border-gray-100 flex-row items-center justify-between"
-                onPress={() => {
-                  setEditingId(item.id);
-                  setEditModalVisible(true);
-                }}
+                onPress={() => abrirEdicao(item.id)}
               >
                 <View className="flex-1 mr-4">
                   <View className="flex-row justify-between mb-2">
@@ -284,12 +301,14 @@ export default function HistoricoScreen() {
         )}
       </View>
 
-      <EditInseminacaoModal 
-        visible={editModalVisible}
-        onClose={() => setEditModalVisible(false)}
-        inseminacaoId={editingId}
-        onSaveSuccess={() => carregarHistorico()}
-      />
+      {editingId ? (
+        <EditInseminacaoModal 
+          visible={editModalVisible}
+          onClose={fecharEdicao}
+          inseminacaoId={editingId}
+          onSaveSuccess={() => carregarHistorico()}
+        />
+      ) : null}
     </View>
   );
 }

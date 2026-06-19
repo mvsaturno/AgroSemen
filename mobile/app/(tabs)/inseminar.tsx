@@ -9,6 +9,7 @@ import { useAuthStore } from '../../src/store';
 import { v4 as uuidv4 } from 'uuid';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import { SyncEngine } from '../../src/services/syncEngine';
 
 export default function InseminarScreen() {
   const router = useRouter();
@@ -122,6 +123,7 @@ export default function InseminarScreen() {
 
       Alert.alert('Sucesso', 'Inseminação registrada com sucesso!');
       router.replace('/(tabs)');
+      SyncEngine.sync();
     } catch (e) {
       Alert.alert('Erro', 'Não foi possível registrar a inseminação.');
     }

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, FlatList, ActivityIndicator, Share, Alert } from 'react-native';
 import { db } from '../../src/database';
 import { touro, loteSemen, inseminacao } from '../../src/database/schema';
-import { eq, sum } from 'drizzle-orm';
+import { eq, sum, isNull, and } from 'drizzle-orm';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { useAuthStore } from '../../src/store';
 import { Ionicons } from '@expo/vector-icons';
+import { SyncEngine } from '../../src/services/syncEngine';
+import { api } from '../../src/api/client';
 
 type TouroComTotais = {
   id: string;
@@ -25,6 +27,31 @@ export default function HomeScreen() {
   const [touros, setTouros] = useState<TouroComTotais[]>([]);
   const [modalVisivel, setModalVisivel] = useState(false);
   const [comprasAlertaCount, setComprasAlertaCount] = useState(0);
+  const [gerandoLink, setGerandoLink] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = SyncEngine.subscribe(() => {
+      console.log('[HomeScreen] Sync completed, reloading...');
+      carregarEstoque();
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleGerarLinkCatalogo = async () => {
+    setGerandoLink(true);
+    try {
+      const res = await api.post('/catalogo/gerar-link');
+      const { link } = res.data;
+      await Share.share({
+        message: `Veja o meu catálogo de touros disponíveis para reserva no AgroSêmen! (Link válido por 24h)\n\n${link}`,
+        title: 'Catálogo AgroSêmen',
+      });
+    } catch (e: any) {
+      Alert.alert('Erro', e.response?.data?.error || 'Falha ao gerar link do catálogo. Verifique sua conexão e tente novamente após sincronizar.');
+    } finally {
+      setGerandoLink(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -33,17 +60,17 @@ export default function HomeScreen() {
   );
 
   const carregarEstoque = async () => {
-    const lotes = await db.select({ total: sum(loteSemen.quantidade) }).from(loteSemen);
+    const lotes = await db.select({ total: sum(loteSemen.quantidade) }).from(loteSemen).where(isNull(loteSemen.deletedAt));
     const saldoServidor = lotes[0]?.total || 0;
 
     const inseminacoesPendentes = await db.select()
       .from(inseminacao)
-      .where(eq(inseminacao.isDirty, true));
+      .where(and(eq(inseminacao.isDirty, true), isNull(inseminacao.deletedAt)));
 
     setSaldoReal(Number(saldoServidor) - inseminacoesPendentes.length);
 
-    const todosTouros = await db.select().from(touro);
-    const todosLotes = await db.select().from(loteSemen);
+    const todosTouros = await db.select().from(touro).where(isNull(touro.deletedAt));
+    const todosLotes = await db.select().from(loteSemen).where(isNull(loteSemen.deletedAt));
 
     const agrupado = todosTouros.map(t => {
       const lotesDoTouro = todosLotes.filter(l => l.touroId === t.id);
@@ -54,7 +81,7 @@ export default function HomeScreen() {
         totalConvencional,
         totalSexado,
       };
-    }).filter(t => t.totalConvencional > 0 || t.totalSexado > 0);
+    });
 
     setTouros(agrupado);
 
@@ -90,6 +117,29 @@ export default function HomeScreen() {
           </View>
         </View>
         <Ionicons name="eye-outline" size={24} color="rgba(255,255,255,0.7)" />
+      </TouchableOpacity>
+
+      {/* Card Compartilhar Catálogo */}
+      <TouchableOpacity 
+        className="bg-blue-600 rounded-3xl p-6 shadow-sm mb-6 flex-row justify-between items-center"
+        onPress={handleGerarLinkCatalogo}
+        disabled={gerandoLink}
+      >
+        <View className="flex-row items-center flex-1 mr-2">
+          <View className="bg-white/20 p-4 rounded-full mr-4">
+            {gerandoLink ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Ionicons name="share-social" size={28} color="white" />
+            )}
+          </View>
+          <View className="flex-1">
+            <Text className="text-white/90 text-sm mb-1">Catálogo de Vendas</Text>
+            <Text className="text-2xl font-bold text-white mb-1">Compartilhar Catálogo</Text>
+            <Text className="text-white/80 text-xs">Gere e envie o link de 24h para seus compradores</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.7)" />
       </TouchableOpacity>
 
       <View className="pb-8">
@@ -169,25 +219,35 @@ export default function HomeScreen() {
       </View>
 
       {/* Alertas Urgentes */}
-      {tourosEmAlerta.length > 0 && (
-        <View className="mt-4 mb-8">
-          <View className="flex-row items-center mb-4">
-             <Ionicons name="warning-outline" size={24} color="#D32F2F" />
-             <Text className="text-gray-900 font-bold text-xl ml-2">Alertas Urgentes</Text>
-          </View>
-          {tourosEmAlerta.map(touro => (
-             <View key={touro.id} className="bg-white rounded-3xl p-5 shadow-sm flex-row justify-between items-center mb-3">
-               <View>
-                 <Text className="font-bold text-gray-900 text-lg">{touro.nome}</Text>
-                 <Text className="text-gray-500 text-sm">{touro.raca} · {touro.codigoRegistro || '0000'}</Text>
-               </View>
-               <View className="bg-danger rounded-full w-10 h-10 items-center justify-center">
-                 <Text className="text-white font-bold">{touro.totalConvencional + touro.totalSexado}</Text>
-               </View>
-             </View>
-          ))}
+      <View className="mt-4 mb-8">
+        <View className="flex-row items-center mb-4">
+           <Ionicons name="warning-outline" size={24} color="#D32F2F" />
+           <Text className="text-gray-900 font-bold text-xl ml-2">Alertas Urgentes</Text>
         </View>
-      )}
+        {tourosEmAlerta.length === 0 ? (
+          <Text className="text-gray-500 text-base italic ml-1">Nenhum touro abaixo do estoque mínimo.</Text>
+        ) : (
+          <>
+            {tourosEmAlerta.map(touro => (
+               <View key={touro.id} className="bg-white rounded-3xl p-5 shadow-sm flex-row justify-between items-center mb-3">
+                 <View>
+                   <Text className="font-bold text-gray-900 text-lg">{touro.nome}</Text>
+                   <Text className="text-gray-500 text-sm">{touro.raca} · {touro.codigoRegistro || '0000'}</Text>
+                 </View>
+                 <View className="bg-danger rounded-full w-10 h-10 items-center justify-center">
+                   <Text className="text-white font-bold">{touro.totalConvencional + touro.totalSexado}</Text>
+                 </View>
+               </View>
+            ))}
+            <TouchableOpacity 
+              onPress={() => router.push('/compras')}
+              className="mt-2 py-2 items-center"
+            >
+              <Text className="text-primary font-bold text-base underline">Ver lista de compras</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
       </ScrollView>
 
       {/* Modal Estoque Atual */}

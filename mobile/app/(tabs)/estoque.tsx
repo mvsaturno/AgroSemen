@@ -8,6 +8,7 @@ import { touro, loteSemen } from '../../src/database/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
+import { SyncEngine } from '../../src/services/syncEngine';
 
 type TouroComLotes = {
   id: string;
@@ -30,6 +31,14 @@ export default function EstoqueScreen() {
   const [selectedRaca, setSelectedRaca] = useState('Todas');
   
   const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = SyncEngine.subscribe(() => {
+      console.log('[EstoqueScreen] Sync completed, reloading...');
+      carregarEstoque();
+    });
+    return unsubscribe;
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

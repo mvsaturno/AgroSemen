@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../src/database';
-import { inseminacao, loteSemen, cliente } from '../src/database/schema';
+import { inseminacao, loteSemen, cliente, touro } from '../src/database/schema';
 import { eq, isNull } from 'drizzle-orm';
 import { useAuthStore } from '../src/store';
 import { Picker } from '@react-native-picker/picker';
+import { SyncEngine } from '../src/services/syncEngine';
 
 interface EditInseminacaoModalProps {
   visible: boolean;
@@ -82,8 +83,19 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
         setDataInseminacao(parseDateToLocale(item.dataInseminacao));
         setLoteIdOriginal(item.loteSemenId);
         
-        // Simples mock do touro para UI (idealmente fariamos um join com a tabela touro para pegar o nome)
-        setTouroNome('Registro de Inseminação');
+        const tInfo = await db.select().from(touro).where(eq(touro.id, item.touroId)).limit(1);
+        const lInfo = await db.select().from(loteSemen).where(eq(loteSemen.id, item.loteSemenId)).limit(1);
+        
+        let label = 'Desconhecido';
+        if (tInfo.length > 0) {
+          let tipoStr = 'Convencional';
+          if (lInfo.length > 0) {
+            if (lInfo[0].tipo === 'SEXADO_MACHO') tipoStr = 'Sexado ♂';
+            if (lInfo[0].tipo === 'SEXADO_FEMEA') tipoStr = 'Sexado ♀';
+          }
+          label = `${tInfo[0].nome} (${tipoStr})`;
+        }
+        setTouroNome(label);
       }
     } catch (e) {
       Alert.alert('Erro', 'Não foi possível carregar o registro.');
@@ -105,6 +117,7 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
       Alert.alert('Sucesso', 'Registro atualizado.');
       onSaveSuccess();
       onClose();
+      SyncEngine.sync();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível atualizar o registro.');
     }
@@ -142,6 +155,7 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
               Alert.alert('Sucesso', 'Registro excluído e saldo restaurado no estoque.');
               onSaveSuccess();
               onClose();
+              SyncEngine.sync();
             } catch (error) {
               Alert.alert('Erro', 'Falha ao excluir registro.');
             }
@@ -156,7 +170,12 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
       <View className="flex-1 justify-end bg-black/50">
         <View className="bg-surface-background rounded-t-3xl h-[85%] p-6">
           <View className="flex-row justify-between items-center mb-6">
-            <Text className="text-2xl font-bold text-primary-dark">Editar Registro</Text>
+            <View>
+              <Text className="text-2xl font-bold text-primary-dark">Editar Registro</Text>
+              {touroNome ? (
+                <Text className="text-gray-500 text-sm font-semibold mt-1">Touro: {touroNome}</Text>
+              ) : null}
+            </View>
             <TouchableOpacity onPress={onClose} className="p-2 border border-gray-300 rounded-full">
               <Ionicons name="close" size={20} color="#1B5E20" />
             </TouchableOpacity>

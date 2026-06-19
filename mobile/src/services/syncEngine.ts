@@ -8,6 +8,25 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../store';
 
 export class SyncEngine {
+  private static listeners = new Set<() => void>();
+
+  static subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private static notify() {
+    this.listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (e) {
+        console.error('[SyncEngine] Error in sync listener:', e);
+      }
+    });
+  }
+
   // Retorna a data do último sync
   static async getLastSyncedAt(): Promise<string | null> {
     try {
@@ -312,6 +331,7 @@ export class SyncEngine {
         }
 
         console.log('[SyncEngine] Sincronização concluída com sucesso!');
+        this.notify();
       } else {
         console.warn('[SyncEngine] Resposta de sincronização inválida:', response.status);
       }

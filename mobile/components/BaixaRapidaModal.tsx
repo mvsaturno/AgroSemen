@@ -6,6 +6,7 @@ import { loteSemen, inseminacao } from '../src/database/schema';
 import { eq } from 'drizzle-orm';
 import { useAuthStore } from '../src/store';
 import { v4 as uuidv4 } from 'uuid';
+import { SyncEngine } from '../src/services/syncEngine';
 
 interface BaixaRapidaModalProps {
   visible: boolean;
@@ -60,6 +61,7 @@ export default function BaixaRapidaModal({ visible, onClose, touroNome, lotes, o
       Alert.alert('Sucesso', 'Baixa registrada com sucesso!');
       onSaveSuccess();
       onClose();
+      SyncEngine.sync();
     } catch (e) {
       console.error('Erro na baixa rápida:', e);
       Alert.alert('Erro', 'Não foi possível registrar a baixa rápida.');

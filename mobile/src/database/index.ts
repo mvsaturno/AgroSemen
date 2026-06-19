@@ -136,5 +136,20 @@ export const initializeDb = () => {
       deviceId TEXT NOT NULL,
       lastSyncedAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS intencao_reserva (
+      id TEXT PRIMARY KEY NOT NULL,
+      contaId TEXT NOT NULL,
+      touroId TEXT NOT NULL,
+      nomeComprador TEXT NOT NULL,
+      telefoneComprador TEXT,
+      tipoSemen TEXT NOT NULL,
+      quantidade INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'PENDENTE',
+      updatedAt TEXT NOT NULL,
+      isDirty INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (contaId) REFERENCES conta (id),
+      FOREIGN KEY (touroId) REFERENCES touro (id)
+    );
   `);
 };
