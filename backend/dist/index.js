@@ -102,6 +102,35 @@ async function main() {
     await app.register(inseminacoes_1.default, { prefix: '/inseminacoes' });
     await app.register(clientes_1.default, { prefix: '/clientes' });
     await app.register(sync_1.default, { prefix: '/sync' });
+    // Global Error Handler
+    app.setErrorHandler((error, request, reply) => {
+        const err = error;
+        app.log.error(err);
+        // Trata erros do Prisma
+        if (err.constructor?.name?.includes('Prisma') || err.code?.startsWith('P')) {
+            const code = err.code || 'PRISMA';
+            const errorMessage = err.message || '';
+            const lastLine = errorMessage.split('\n').filter(Boolean).pop() || '';
+            return reply.status(500).send({
+                error: 'Erro no Banco de Dados',
+                message: `Erro no banco de dados [Código: ${code}]. Detalhes: ${lastLine}`,
+            });
+        }
+        // Trata erros de validação (Fastify / Zod)
+        if (err.validation) {
+            return reply.status(400).send({
+                error: 'Erro de Validação',
+                message: err.message,
+                details: err.validation,
+            });
+        }
+        // Resposta padrão para outros erros
+        const statusCode = err.statusCode || 500;
+        return reply.status(statusCode).send({
+            error: err.name || 'Erro Interno do Servidor',
+            message: err.message || 'Ocorreu um erro inesperado no servidor.',
+        });
+    });
     // Health check
     app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
     // ─── Start ──────────────────────────────────────────────────────────────────

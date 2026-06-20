@@ -152,7 +152,9 @@ export default function ConfiguracoesScreen() {
         title: 'Catálogo AgroSêmen',
       });
     } catch (e: any) {
-      Alert.alert('Erro', e.response?.data?.error || 'Falha ao gerar link do catálogo. Verifique sua conexão e tente novamente após sincronizar.');
+      const errMsg = e.response?.data?.message || e.response?.data?.error || e.message || 'Falha ao gerar link do catálogo.';
+      const statusSuffix = e.response?.status ? ` (Código HTTP: ${e.response.status})` : '';
+      Alert.alert('Erro', `${errMsg}${statusSuffix}\n\nVerifique sua conexão e tente novamente após sincronizar.`);
     } finally {
       setGerandoLink(false);
     }
