@@ -21,6 +21,7 @@ async function syncRoutes(app) {
                 touros: zod_1.z.array(zod_1.z.any()).optional().default([]),
                 lotes: zod_1.z.array(zod_1.z.any()).optional().default([]),
                 clientes: zod_1.z.array(zod_1.z.any()).optional().default([]),
+                intencoesReserva: zod_1.z.array(zod_1.z.any()).optional().default([]),
             }).optional().default({}),
         });
         const parsed = schema.safeParse(request.body);
@@ -172,8 +173,28 @@ async function syncRoutes(app) {
                 errors.push(`Inseminação ${i.id}: ${e}`);
             }
         }
+        // Intenções de Reserva (Aprovar/Rejeitar)
+        for (const r of pushData.intencoesReserva || []) {
+            try {
+                const existente = await database_1.default.intencaoReserva.findUnique({ where: { id: r.id } });
+                if (existente && new Date(r.updatedAt) > existente.updatedAt) {
+                    let dbStatus = 'PENDENTE';
+                    if (r.status === 'ATENDIDA')
+                        dbStatus = 'ATENDIDO';
+                    else if (r.status === 'CANCELADA')
+                        dbStatus = 'CANCELADO';
+                    await database_1.default.intencaoReserva.update({
+                        where: { id: r.id },
+                        data: { status: dbStatus },
+                    });
+                }
+            }
+            catch (e) {
+                errors.push(`IntençãoReserva ${r.id}: ${e}`);
+            }
+        }
         // ── PULL: retorna delta desde last_synced_at ──────────────────────────
-        const [touros, lotes, clientes, inseminacoes] = await Promise.all([
+        const [touros, lotes, clientes, inseminacoes, intencoesReservaDb] = await Promise.all([
             database_1.default.touro.findMany({
                 where: { contaId, updatedAt: { gt: since } },
                 include: { lotes: { where: { updatedAt: { gt: since } } } },
@@ -193,7 +214,24 @@ async function syncRoutes(app) {
                     usuario: { select: { nome: true } },
                 },
             }),
+            database_1.default.intencaoReserva.findMany({
+                where: { contaId, updatedAt: { gt: since } },
+                include: {
+                    touro: { select: { nome: true, raca: true } },
+                }
+            })
         ]);
+        const intencoesReserva = intencoesReservaDb.map(r => {
+            let mobileStatus = r.status;
+            if (r.status === 'ATENDIDO')
+                mobileStatus = 'ATENDIDA';
+            else if (r.status === 'CANCELADO')
+                mobileStatus = 'CANCELADA';
+            return {
+                ...r,
+                status: mobileStatus
+            };
+        });
         // Atualiza metadata de sync do dispositivo
         await database_1.default.syncMetadata.upsert({
             where: { usuarioId_deviceId: { usuarioId, deviceId } },
@@ -203,7 +241,7 @@ async function syncRoutes(app) {
         return reply.send({
             syncedAt: syncAt.toISOString(),
             errors: errors.length > 0 ? errors : undefined,
-            pull: { touros, lotes, clientes, inseminacoes },
+            pull: { touros, lotes, clientes, inseminacoes, intencoesReserva },
         });
     });
 }

@@ -230,9 +230,13 @@ export default async function syncRoutes(app: FastifyInstance) {
       try {
         const existente = await prisma.intencaoReserva.findUnique({ where: { id: r.id } })
         if (existente && new Date(r.updatedAt) > existente.updatedAt) {
+          let dbStatus: 'PENDENTE' | 'ATENDIDO' | 'CANCELADO' = 'PENDENTE';
+          if (r.status === 'ATENDIDA') dbStatus = 'ATENDIDO';
+          else if (r.status === 'CANCELADA') dbStatus = 'CANCELADO';
+
           await prisma.intencaoReserva.update({
             where: { id: r.id },
-            data: { status: r.status },
+            data: { status: dbStatus },
           })
         }
       } catch (e) {
@@ -241,7 +245,7 @@ export default async function syncRoutes(app: FastifyInstance) {
     }
 
     // ── PULL: retorna delta desde last_synced_at ──────────────────────────
-    const [touros, lotes, clientes, inseminacoes, intencoesReserva] = await Promise.all([
+    const [touros, lotes, clientes, inseminacoes, intencoesReservaDb] = await Promise.all([
       prisma.touro.findMany({
         where: { contaId, updatedAt: { gt: since } },
         include: { lotes: { where: { updatedAt: { gt: since } } } },
@@ -268,6 +272,16 @@ export default async function syncRoutes(app: FastifyInstance) {
         }
       })
     ])
+
+    const intencoesReserva = intencoesReservaDb.map(r => {
+      let mobileStatus = r.status as string;
+      if (r.status === 'ATENDIDO') mobileStatus = 'ATENDIDA';
+      else if (r.status === 'CANCELADO') mobileStatus = 'CANCELADA';
+      return {
+        ...r,
+        status: mobileStatus
+      };
+    })
 
     // Atualiza metadata de sync do dispositivo
     await prisma.syncMetadata.upsert({
