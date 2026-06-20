@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
+import { View, Image } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@/src/store';
@@ -77,7 +78,15 @@ export default function RootLayout() {
   }, [appIsReady]);
 
   if (!loaded || !hydrated || !appIsReady) {
-    return null;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#1B5E20', justifyContent: 'center', alignItems: 'center' }}>
+        <Image
+          source={require('../assets/images/splash-icon.png')}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
+        />
+      </View>
+    );
   }
 
   return <RootLayoutNav />;
