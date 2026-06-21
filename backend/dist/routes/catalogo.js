@@ -21,9 +21,8 @@ async function catalogoRoutes(app) {
                 expiresAt,
             }
         });
-        const port = process.env.PORT || '3000';
-        const host = process.env.HOST || '127.0.0.1';
-        const link = `http://${host}:${port}/catalogo/c/${token}`;
+        const baseUrl = process.env.PUBLIC_URL || `http://${process.env.HOST || '127.0.0.1'}:${process.env.PORT || '3000'}`;
+        const link = `${baseUrl}/catalogo/c/${token}`;
         return reply.send({ link, token, expiresAt });
     });
     // ─── GET /catalogo/api/:token ───────────────────────────────────────────
