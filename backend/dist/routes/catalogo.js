@@ -388,14 +388,8 @@ async function catalogoRoutes(app) {
           </svg>
           Enviar via WhatsApp
         </a>
-        <button onclick="shareOrder()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center gap-2 text-base">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 10.742l4.636-2.318m-4.636 2.318l4.636 2.318M7 7h.01M7 17h.01M17 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          Compartilhar Pedido
-        </button>
-        <button onclick="resetCartAndRestart()" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-3 px-6 rounded-2xl transition text-sm mt-2">
-          Fazer Outro Pedido (Voltar ao Catálogo)
+        <button onclick="resetCartAndRestart()" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-3 px-6 rounded-2xl transition text-sm mt-1">
+          Fazer Outro Pedido
         </button>
       </div>
     </div>
@@ -598,28 +592,19 @@ async function catalogoRoutes(app) {
         '          ' + selectOptions +
         '        </select>' +
         '      </div>' +
-        '      <div class="flex items-center justify-between gap-4 pt-1">' +
-        '        <div>' +
-        '          <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Quantidade</span>' +
-        '          <span id="stock-badge-' + t.id + '" class="text-[11px] text-primary-700 font-bold">' + firstAvailableMax + ' doses disponíveis</span>' +
+        '      <div class="flex items-center justify-between gap-3 pt-2">' +
+        '        <div class="flex items-center border border-slate-200 rounded-lg bg-slate-50 p-0.5">' +
+        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, -1)" class="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-md transition-colors font-bold text-sm select-none">−</button>' +
+        '          <input type="number" id="qty-input-' + t.id + '" value="1" min="1" max="' + firstAvailableMax + '" class="w-9 text-center bg-transparent border-none text-sm font-bold text-slate-800 focus:ring-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" readonly>' +
+        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, 1)" class="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-md transition-colors font-bold text-sm select-none">+</button>' +
         '        </div>' +
-        '        ' +
-        '        <div class="flex items-center border border-slate-200 rounded-xl bg-slate-50/50 p-1">' +
-        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, -1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">-</button>' +
-        '          <input type="number" id="qty-input-' + t.id + '" value="1" min="1" max="' + firstAvailableMax + '" class="w-10 text-center bg-transparent border-none text-sm font-bold text-slate-800 focus:ring-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" readonly>' +
-        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, 1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">+</button>' +
-        '        </div>' +
+        '        <button onclick="addItemToCart(&quot;' + t.id + '&quot;)" class="flex-1 bg-primary-600 hover:bg-primary-700 active:scale-95 text-white font-bold py-2 px-3 rounded-lg transition-all duration-150 flex items-center justify-center gap-1.5 text-sm shadow-sm shadow-primary-100">' +
+        '          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>' +
+        '          Adicionar' +
+        '        </button>' +
         '      </div>' +
         '    </div>' +
         '  </div>' +
-        '</div>' +
-        '<div class="px-5 pb-5 pt-2">' +
-        '  <button onclick="addItemToCart(&quot;' + t.id + '&quot;)" class="w-full bg-slate-900 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 group hover:shadow-md hover:shadow-primary-100">' +
-        '    <svg class="w-4.5 h-4.5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
-        '      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>' +
-        '    </svg>' +
-        '    Adicionar à Sacola' +
-        '  </button>' +
         '</div>' +
         '</div>';
     }

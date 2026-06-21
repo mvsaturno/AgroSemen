@@ -125,8 +125,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="pedidos"
         options={{
-          href: null,
-          title: 'Pedidos do Catálogo',
+          title: 'Pedidos',
+          tabBarLabel: 'Pedidos',
+          tabBarIcon: ({ color }) => <Ionicons name="receipt" size={36} color={color} />,
         }}
       />
     </Tabs>
