@@ -192,7 +192,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Linha 3 */}
-        <View className="flex-row justify-between mb-2">
+        <View className="flex-row justify-between mb-6">
           <TouchableOpacity 
             className="flex-1 bg-white rounded-3xl py-10 px-4 items-center justify-center shadow-sm relative mr-3"
             onPress={() => router.push('/compras')}
@@ -210,6 +210,19 @@ export default function HomeScreen() {
 
           <TouchableOpacity 
             className="flex-1 bg-white rounded-3xl py-10 px-4 items-center justify-center shadow-sm ml-3"
+            onPress={() => router.push('/pedidos')}
+          >
+            <View className="bg-primary/10 w-20 h-20 rounded-full items-center justify-center mb-4">
+               <Ionicons name="receipt-outline" size={44} color="#1B5E20" />
+            </View>
+            <Text className="text-gray-900 font-bold text-center text-lg">Pedidos</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Linha 4 */}
+        <View className="flex-row justify-between mb-2">
+          <TouchableOpacity 
+            className="flex-1 bg-white rounded-3xl py-10 px-4 items-center justify-center shadow-sm"
             onPress={() => router.push('/configuracoes')}
           >
             <View className="bg-primary/10 w-20 h-20 rounded-full items-center justify-center mb-4">

@@ -1,5 +1,5 @@
-import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useEffect } from 'react';
 import { SyncEngine } from '../../src/services/syncEngine';
@@ -27,38 +27,24 @@ function OfflineBadge() {
 
 export default function TabLayout() {
   const authUser = useAuthStore(state => state.user);
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHome = pathname === '/';
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#1B5E20',
-        tabBarStyle: { 
-          backgroundColor: '#FFFFFF', 
-          borderTopColor: '#E8F5E9',
-          height: 105,
-          paddingBottom: 16,
-          paddingTop: 12,
-        },
-        tabBarIconStyle: {
-          width: 44,
-          height: 44,
-          justifyContent: 'center',
-          alignItems: 'center',
-        },
-        tabBarLabelStyle: {
-          fontSize: 14,
-          fontWeight: '600',
-          marginTop: 4,
-        },
-        headerStyle: { backgroundColor: '#1B5E20' },
-        headerTintColor: '#FFFFFF',
-        headerRight: () => (
-          <View className="flex-row items-center pr-4">
-            <OfflineBadge />
-            <Text className="text-white text-sm font-bold">Olá, {authUser?.nome}</Text>
-          </View>
-        ),
-      }}>
+    <View className="flex-1 bg-surface-background">
+      <Tabs
+        screenOptions={{
+          tabBarStyle: { display: 'none' },
+          headerStyle: { backgroundColor: '#1B5E20' },
+          headerTintColor: '#FFFFFF',
+          headerRight: () => (
+            <View className="flex-row items-center pr-4">
+              <OfflineBadge />
+              <Text className="text-white text-sm font-bold">Olá, {authUser?.nome}</Text>
+            </View>
+          ),
+        }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -131,5 +117,16 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+      {!isHome && (
+        <View className="bg-surface-background pb-8 pt-3 items-center border-t border-gray-200">
+          <TouchableOpacity 
+            className="bg-primary-dark w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-primary-dark/40"
+            onPress={() => router.push('/')}
+          >
+            <Ionicons name="home" size={26} color="white" />
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
