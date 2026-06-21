@@ -27,6 +27,7 @@ export default function EstoqueScreen() {
   const [baixaModalVisible, setBaixaModalVisible] = useState(false);
   const [baixaTouro, setBaixaTouro] = useState<{nome: string, lotes: any[]} | null>(null);
   
+  const [viewMode, setViewMode] = useState<'compact' | 'large'>('large');
   const [selectedRaca, setSelectedRaca] = useState('Todas');
   
   const router = useRouter();
@@ -105,7 +106,7 @@ export default function EstoqueScreen() {
   return (
     <View className="flex-1 bg-surface-background p-4">
       <View className="flex-row items-center justify-between mb-4">
-        <View className="flex-1 bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+        <View className="flex-1 bg-white rounded-xl p-3 shadow-sm border border-gray-100 mr-2">
           <TextInput
             placeholder="Buscar por nome ou raça..."
             value={busca}
@@ -113,6 +114,12 @@ export default function EstoqueScreen() {
             className="px-2 text-base text-gray-900"
           />
         </View>
+        <TouchableOpacity 
+          className="bg-white p-3 rounded-xl shadow-sm border border-gray-100"
+          onPress={() => setViewMode(viewMode === 'compact' ? 'large' : 'compact')}
+        >
+          <Ionicons name={viewMode === 'compact' ? 'grid-outline' : 'list-outline'} size={24} color="#1B5E20" />
+        </TouchableOpacity>
       </View>
 
       <View className="mb-4">
@@ -137,52 +144,98 @@ export default function EstoqueScreen() {
               <Text className="text-white font-bold text-sm">{agrupadoPorRaca[raca].length} touro(s)</Text>
             </View>
             
-            {agrupadoPorRaca[raca].map((item: any) => (
-              <View key={item.id} className="bg-white rounded-2xl mb-6 shadow-sm border border-gray-100 overflow-hidden">
-                {item.fotoUrl ? (
-                  <Image source={{ uri: item.fotoUrl }} className="w-full h-64" resizeMode="cover" />
-                ) : (
-                  <View className="w-full h-40 bg-gray-100 items-center justify-center">
-                    <Ionicons name="image-outline" size={48} color="#9CA3AF" />
-                  </View>
-                )}
-                
-                <View className="p-4">
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View>
-                      <Text className="font-extrabold text-xl text-gray-900 uppercase tracking-tight">{item.nome}</Text>
-                      <Text className="text-gray-500 text-sm">{item.raca} · {item.lotes[0]?.codigoPalheta || '0000'}</Text>
+            {agrupadoPorRaca[raca].map((item: any) => {
+              if (viewMode === 'compact') {
+                return (
+                  <View key={item.id} className="bg-white rounded-2xl mb-4 shadow-sm border border-gray-100 p-4 flex-row items-center">
+                    {item.fotoUrl ? (
+                      <Image source={{ uri: item.fotoUrl }} className="w-20 h-20 rounded-xl mr-4" resizeMode="cover" />
+                    ) : (
+                      <View className="w-20 h-20 bg-gray-100 rounded-xl mr-4 items-center justify-center">
+                        <Ionicons name="image-outline" size={24} color="#9CA3AF" />
+                      </View>
+                    )}
+                    <View className="flex-1">
+                      <Text className="font-extrabold text-lg text-gray-900 uppercase tracking-tight leading-tight">{item.nome}</Text>
+                      <Text className="text-gray-500 text-xs mb-2">{item.raca} · {item.lotes[0]?.codigoPalheta || '0000'}</Text>
+                      <View className="flex-row flex-wrap">
+                        {item.lotes.map((l: any) => renderLoteInfo(l))}
+                      </View>
                     </View>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        setEditingTouroId(item.id);
-                        setModalVisible(true);
-                      }}
-                      className="p-2"
-                    >
-                      <Ionicons name="pencil" size={20} color="#4B5563" />
-                    </TouchableOpacity>
+                    <View className="flex-row items-center ml-2">
+                      <TouchableOpacity 
+                        className="w-12 h-12 rounded-full bg-primary items-center justify-center shadow-sm shadow-primary-200 mr-3"
+                        onPress={() => {
+                          setBaixaTouro({ nome: item.nome, lotes: item.lotes });
+                          setBaixaModalVisible(true);
+                        }}
+                      >
+                        <Ionicons name="medical" size={20} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        className="w-10 h-10 items-center justify-center"
+                        onPress={() => {
+                          setEditingTouroId(item.id);
+                          setModalVisible(true);
+                        }}
+                      >
+                        <Ionicons name="pencil-outline" size={22} color="#4B5563" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
+                );
+              }
 
-                  <View className="flex-row justify-center mt-2 mb-6">
-                    <TouchableOpacity 
-                      className="flex-row items-center bg-white"
-                      onPress={() => {
-                        setBaixaTouro({ nome: item.nome, lotes: item.lotes });
-                        setBaixaModalVisible(true);
-                      }}
-                    >
-                      <Ionicons name="medical" size={24} color="#3B82F6" />
-                      <Text className="text-blue-500 font-extrabold text-lg ml-2">APLICAR</Text>
-                    </TouchableOpacity>
-                  </View>
+              // Large View
+              return (
+                <View key={item.id} className="bg-white rounded-2xl mb-6 shadow-sm border border-gray-100 overflow-hidden">
+                  {item.fotoUrl ? (
+                    <Image source={{ uri: item.fotoUrl }} className="w-full h-64" resizeMode="cover" />
+                  ) : (
+                    <View className="w-full h-40 bg-gray-100 items-center justify-center">
+                      <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+                    </View>
+                  )}
+                  
+                  <View className="p-4">
+                    <View className="flex-row justify-between items-start mb-2">
+                      <View>
+                        <Text className="font-extrabold text-xl text-gray-900 uppercase tracking-tight">{item.nome}</Text>
+                        <Text className="text-gray-500 text-sm">{item.raca} · {item.lotes[0]?.codigoPalheta || '0000'}</Text>
+                      </View>
+                    </View>
 
-                  <View className="mt-2">
-                    {item.lotes.map((l: any) => renderLoteInfo(l))}
+                    <View className="flex-row justify-center mt-2 mb-6">
+                      <TouchableOpacity 
+                        className="flex-row items-center bg-white"
+                        onPress={() => {
+                          setBaixaTouro({ nome: item.nome, lotes: item.lotes });
+                          setBaixaModalVisible(true);
+                        }}
+                      >
+                        <Ionicons name="medical" size={24} color="#3B82F6" />
+                        <Text className="text-blue-500 font-extrabold text-lg ml-2">APLICAR</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="flex-row justify-between items-end mt-2">
+                      <View className="flex-1">
+                        {item.lotes.map((l: any) => renderLoteInfo(l))}
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          setEditingTouroId(item.id);
+                          setModalVisible(true);
+                        }}
+                        className="p-2"
+                      >
+                        <Ionicons name="pencil" size={20} color="#4B5563" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ))}
         {tourosFiltrados.length === 0 && (

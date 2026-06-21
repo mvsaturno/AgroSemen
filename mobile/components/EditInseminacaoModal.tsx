@@ -21,12 +21,16 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
 
   const [clientes, setClientes] = useState<any[]>([]);
   const [selectedCliente, setSelectedCliente] = useState('');
+  const [clienteNaoCadastrado, setClienteNaoCadastrado] = useState('');
   const [identificacaoVaca, setIdentificacaoVaca] = useState('');
   const [valorCobrado, setValorCobrado] = useState('');
   const [dataInseminacao, setDataInseminacao] = useState('');
   
-  // Para exibir como read-only
-  const [touroNome, setTouroNome] = useState('');
+  const [touros, setTouros] = useState<any[]>([]);
+  const [lotes, setLotes] = useState<any[]>([]);
+  const [selectedTouroId, setSelectedTouroId] = useState('');
+  const [selectedLoteId, setSelectedLoteId] = useState('');
+  
   const [loteIdOriginal, setLoteIdOriginal] = useState('');
 
   useEffect(() => {
@@ -74,28 +78,23 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
       const cList = await db.select().from(cliente).where(isNull(cliente.deletedAt));
       setClientes(cList);
 
+      const tList = await db.select().from(touro).where(isNull(touro.deletedAt));
+      const lList = await db.select().from(loteSemen).where(isNull(loteSemen.deletedAt));
+      setTouros(tList);
+      setLotes(lList);
+
       const ins = await db.select().from(inseminacao).where(eq(inseminacao.id, inseminacaoId)).limit(1);
       if (ins.length > 0) {
         const item = ins[0];
         setSelectedCliente(item.clienteId || '');
+        setClienteNaoCadastrado(item.nota || ''); // Guardamos o nome não cadastrado na nota
         setIdentificacaoVaca(item.identificacaoVaca || '');
         setValorCobrado(item.valorCobrado ? String(item.valorCobrado) : '0');
         setDataInseminacao(parseDateToLocale(item.dataInseminacao));
         setLoteIdOriginal(item.loteSemenId);
         
-        const tInfo = await db.select().from(touro).where(eq(touro.id, item.touroId)).limit(1);
-        const lInfo = await db.select().from(loteSemen).where(eq(loteSemen.id, item.loteSemenId)).limit(1);
-        
-        let label = 'Desconhecido';
-        if (tInfo.length > 0) {
-          let tipoStr = 'Convencional';
-          if (lInfo.length > 0) {
-            if (lInfo[0].tipo === 'SEXADO_MACHO') tipoStr = 'Sexado ♂';
-            if (lInfo[0].tipo === 'SEXADO_FEMEA') tipoStr = 'Sexado ♀';
-          }
-          label = `${tInfo[0].nome} (${tipoStr})`;
-        }
-        setTouroNome(label);
+        setSelectedTouroId(item.touroId);
+        setSelectedLoteId(item.loteSemenId);
       }
     } catch (e) {
       Alert.alert('Erro', 'Não foi possível carregar o registro.');
@@ -103,10 +102,40 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
   };
 
   const handleSalvar = async () => {
+    if (!selectedLoteId) {
+      return Alert.alert('Erro', 'Selecione um lote de sêmen válido.');
+    }
+
     try {
       const timestamp = new Date().toISOString();
+      
+      // Se trocou o lote, precisamos devolver a dose para o original e tirar do novo
+      if (selectedLoteId !== loteIdOriginal) {
+        // Devolve pro antigo
+        const loteAntigo = await db.select().from(loteSemen).where(eq(loteSemen.id, loteIdOriginal)).limit(1);
+        if (loteAntigo.length > 0) {
+          await db.update(loteSemen)
+            .set({ quantidade: loteAntigo[0].quantidade + 1, updatedAt: timestamp, isDirty: true })
+            .where(eq(loteSemen.id, loteIdOriginal));
+        }
+
+        // Tira do novo
+        const loteNovo = await db.select().from(loteSemen).where(eq(loteSemen.id, selectedLoteId)).limit(1);
+        if (loteNovo.length > 0) {
+          if (loteNovo[0].quantidade <= 0) {
+            return Alert.alert('Aviso', 'O lote selecionado não tem saldo suficiente.');
+          }
+          await db.update(loteSemen)
+            .set({ quantidade: loteNovo[0].quantidade - 1, updatedAt: timestamp, isDirty: true })
+            .where(eq(loteSemen.id, selectedLoteId));
+        }
+      }
+
       await db.update(inseminacao).set({
+        touroId: selectedTouroId,
+        loteSemenId: selectedLoteId,
         clienteId: selectedCliente || null,
+        nota: selectedCliente ? null : clienteNaoCadastrado, // salva a nota se não tiver cliente
         identificacaoVaca,
         valorCobrado: Number(valorCobrado) || 0,
         dataInseminacao: parseLocaleToISO(dataInseminacao),
@@ -165,83 +194,154 @@ export default function EditInseminacaoModal({ visible, onClose, inseminacaoId, 
     );
   };
 
+  const formatTipoLote = (tipo: string) => {
+    if (tipo === 'CONVENCIONAL') return 'Convencional';
+    if (tipo === 'SEXADO_MACHO') return 'Sexado ♂ (Macho)';
+    if (tipo === 'SEXADO_FEMEA') return 'Sexado ♀ (Fêmea)';
+    return tipo;
+  };
+
+  const lotesDisponiveis = lotes.filter(l => l.touroId === selectedTouroId);
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
       <View className="flex-1 justify-end bg-black/50">
         <View className="bg-surface-background rounded-t-3xl h-[85%] p-6">
-          <View className="flex-row justify-between items-center mb-6">
-            <View>
-              <Text className="text-2xl font-bold text-primary-dark">Editar Registro</Text>
-              {touroNome ? (
-                <Text className="text-gray-500 text-sm font-semibold mt-1">Touro: {touroNome}</Text>
-              ) : null}
+          <View className="flex-row justify-between items-start mb-4">
+            <View className="flex-1 mr-4">
+              <Text className="text-2xl font-bold text-primary-dark">Editar inseminação</Text>
+              <Text className="text-gray-500 text-sm mt-1 leading-tight">
+                Ajuste os dados do registro. Trocar touro ou tipo de sêmen reequilibra o estoque.
+              </Text>
             </View>
-            <TouchableOpacity onPress={onClose} className="p-2 border border-gray-300 rounded-full">
-              <Ionicons name="close" size={20} color="#1B5E20" />
+            <TouchableOpacity onPress={onClose} className="p-1">
+              <Ionicons name="close" size={24} color="#4B5563" />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            <View className="bg-orange-50 p-4 rounded-xl border border-orange-200 mb-6">
-               <Text className="text-orange-800 text-sm">
-                 <Text className="font-bold">Aviso:</Text> Não é possível alterar o Touro ou o Tipo de sêmen para manter a integridade do estoque. Se selecionou a dose errada, exclua este registro abaixo e faça um novo.
-               </Text>
+            
+            {/* Touro */}
+            <Text className="text-gray-900 font-bold mb-1 ml-1">Touro</Text>
+            <View className="bg-surface-background rounded-xl border border-gray-300 mb-4 overflow-hidden">
+              <Picker
+                selectedValue={selectedTouroId}
+                onValueChange={(itemValue) => {
+                  setSelectedTouroId(itemValue);
+                  const firstLote = lotes.find(l => l.touroId === itemValue);
+                  setSelectedLoteId(firstLote ? firstLote.id : '');
+                }}
+              >
+                {touros.map((t) => {
+                  const tLotes = lotes.filter(l => l.touroId === t.id);
+                  let stockStr = '';
+                  tLotes.forEach(l => {
+                    const prefix = l.tipo === 'CONVENCIONAL' ? 'C' : l.tipo === 'SEXADO_MACHO' ? '♂' : '♀';
+                    stockStr += `${prefix} ${l.quantidade} / `;
+                  });
+                  stockStr = stockStr.slice(0, -3);
+                  return <Picker.Item key={t.id} label={`${t.nome} · ${stockStr}`} value={t.id} />;
+                })}
+              </Picker>
             </View>
 
-            <View className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-              <Text className="text-gray-900 font-bold mb-2">Cliente / Fazenda</Text>
-              <View className="bg-surface-background rounded-xl border border-gray-200 mb-4 overflow-hidden">
-                <Picker
-                  selectedValue={selectedCliente}
-                  onValueChange={(itemValue) => setSelectedCliente(itemValue)}
-                >
-                  <Picker.Item label="Nenhum" value="" color="#9CA3AF" />
-                  {clientes.map((c) => (
-                    <Picker.Item key={c.id} label={c.nome} value={c.id} />
-                  ))}
-                </Picker>
+            {/* Tipo de Sêmen */}
+            <Text className="text-gray-900 font-bold mb-1 ml-1">Tipo de sêmen</Text>
+            <View className="bg-surface-background rounded-xl border border-gray-200 mb-4 overflow-hidden">
+              <Picker
+                selectedValue={selectedLoteId}
+                onValueChange={(itemValue) => setSelectedLoteId(itemValue)}
+                enabled={lotesDisponiveis.length > 0}
+              >
+                {lotesDisponiveis.map((l) => (
+                  <Picker.Item key={l.id} label={`${formatTipoLote(l.tipo)}`} value={l.id} />
+                ))}
+                {lotesDisponiveis.length === 0 && (
+                  <Picker.Item label="Nenhum lote disponível" value="" />
+                )}
+              </Picker>
+            </View>
+
+            {/* Vaca */}
+            <Text className="text-gray-900 font-bold mb-1 ml-1">Vaca (brinco/nº)</Text>
+            <TextInput 
+              className="bg-surface-background p-3.5 rounded-xl border border-gray-200 mb-4 text-gray-900" 
+              value={identificacaoVaca} 
+              onChangeText={setIdentificacaoVaca} 
+            />
+
+            {/* Cliente */}
+            <Text className="text-gray-900 font-bold mb-1 ml-1">Cliente</Text>
+            <View className="bg-surface-background rounded-xl border border-gray-200 mb-2 overflow-hidden">
+              <Picker
+                selectedValue={selectedCliente}
+                onValueChange={(itemValue) => setSelectedCliente(itemValue)}
+              >
+                <Picker.Item label="— Sem cliente cadastrado (Cliente sem identificação) —" value="" color="#6B7280" />
+                {clientes.map((c) => (
+                  <Picker.Item key={c.id} label={c.nome} value={c.id} />
+                ))}
+              </Picker>
+            </View>
+            
+            {/* Input para cliente não cadastrado */}
+            {!selectedCliente && (
+              <TextInput 
+                className="bg-surface-background p-3.5 rounded-xl border border-gray-200 mb-4 text-gray-900" 
+                placeholder="Nome do cliente não cadastrado..."
+                value={clienteNaoCadastrado} 
+                onChangeText={setClienteNaoCadastrado} 
+              />
+            )}
+            
+            <View className={`flex-row gap-4 mb-4 ${selectedCliente ? '' : 'mt-0'}`}>
+              <View className="flex-1">
+                <Text className="text-gray-900 font-bold mb-1 ml-1">Data</Text>
+                <View className="flex-row items-center bg-surface-background border border-gray-200 rounded-xl px-3.5">
+                  <TextInput 
+                    className="flex-1 py-3.5 text-gray-900" 
+                    placeholder="DD/MM/AAAA"
+                    value={dataInseminacao} 
+                    onChangeText={setDataInseminacao} 
+                  />
+                  <Ionicons name="calendar-outline" size={20} color="#4B5563" />
+                </View>
               </View>
 
-              <Text className="text-gray-900 font-bold mb-2">Identificação da Vaca</Text>
-              <TextInput 
-                className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 text-gray-900" 
-                placeholder="Ex: Mimosa"
-                value={identificacaoVaca} 
-                onChangeText={setIdentificacaoVaca} 
-              />
-              
-              <Text className="text-gray-900 font-bold mb-2">Data da Aplicação</Text>
-              <TextInput 
-                className="bg-surface-background p-4 rounded-xl border border-gray-200 mb-4 text-gray-900" 
-                placeholder="DD/MM/AAAA"
-                value={dataInseminacao} 
-                onChangeText={setDataInseminacao} 
-              />
-
-              {isPrestador && (
-                <>
-                  <Text className="text-gray-900 font-bold mb-2">Valor Cobrado (R$)</Text>
-                  <TextInput 
-                    className="bg-surface-background p-4 rounded-xl border border-gray-200 text-gray-900" 
-                    keyboardType="numeric"
-                    value={valorCobrado} 
-                    onChangeText={setValorCobrado} 
-                  />
-                </>
-              )}
+              <View className="flex-1">
+                <Text className="text-gray-900 font-bold mb-1 ml-1">Valor (R$)</Text>
+                <TextInput 
+                  className="bg-surface-background py-3.5 px-3.5 rounded-xl border border-gray-200 text-gray-900" 
+                  keyboardType="numeric"
+                  value={valorCobrado} 
+                  onChangeText={setValorCobrado} 
+                  editable={isPrestador}
+                  style={!isPrestador ? { opacity: 0.5 } : {}}
+                />
+              </View>
             </View>
 
-            <View className="flex-row justify-between items-center mt-2">
-              <TouchableOpacity className="flex-1 bg-white border border-danger h-14 rounded-xl items-center justify-center mr-2" onPress={handleExcluir}>
-                <View className="flex-row items-center">
-                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
-                  <Text className="text-danger font-bold text-lg ml-2">Excluir</Text>
-                </View>
+            {/* Ações */}
+            <View className="flex-row justify-between items-center mt-4">
+              <TouchableOpacity onPress={handleExcluir} className="p-3">
+                <Text className="text-gray-400 underline">Excluir Registro</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-1 bg-primary h-14 rounded-xl items-center justify-center ml-2" onPress={handleSalvar}>
-                <Text className="text-white font-bold text-lg">Salvar</Text>
-              </TouchableOpacity>
+              <View className="flex-row gap-3">
+                <TouchableOpacity 
+                  className="bg-white border border-gray-300 py-3 px-6 rounded-full items-center justify-center" 
+                  onPress={onClose}
+                >
+                  <Text className="text-gray-900 font-bold text-base">Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  className="bg-primary-dark py-3 px-8 rounded-full items-center justify-center" 
+                  onPress={handleSalvar}
+                >
+                  <Text className="text-white font-bold text-base">Salvar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+
           </ScrollView>
         </View>
       </View>

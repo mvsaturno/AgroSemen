@@ -61,15 +61,24 @@ export default async function catalogoRoutes(app: FastifyInstance) {
     })
 
     const catalogo = touros.map(t => {
+      const lotesConv = t.lotes.filter(l => l.tipo === 'CONVENCIONAL');
+      const lotesMacho = t.lotes.filter(l => l.tipo === 'SEXADO_MACHO');
+      const lotesFemea = t.lotes.filter(l => l.tipo === 'SEXADO_FEMEA');
+
       const saldos = {
-        CONVENCIONAL: t.lotes.filter(l => l.tipo === 'CONVENCIONAL').reduce((acc, l) => acc + l.quantidade, 0),
-        SEXADO_MACHO: t.lotes.filter(l => l.tipo === 'SEXADO_MACHO').reduce((acc, l) => acc + l.quantidade, 0),
-        SEXADO_FEMEA: t.lotes.filter(l => l.tipo === 'SEXADO_FEMEA').reduce((acc, l) => acc + l.quantidade, 0),
+        CONVENCIONAL: lotesConv.reduce((acc, l) => acc + l.quantidade, 0),
+        SEXADO_MACHO: lotesMacho.reduce((acc, l) => acc + l.quantidade, 0),
+        SEXADO_FEMEA: lotesFemea.reduce((acc, l) => acc + l.quantidade, 0),
       }
 
       t.intencoesReserva.forEach(r => {
         saldos[r.tipoSemen] -= r.quantidade
       })
+
+      const getPreco = (listaLotes: any[]) => {
+        const l = listaLotes.find(x => x.quantidade > 0) || listaLotes[0];
+        return l ? Number(l.valorUnitario || 0) : 0;
+      }
 
       return {
         id: t.id,
@@ -80,6 +89,9 @@ export default async function catalogoRoutes(app: FastifyInstance) {
         qtdConvencional: Math.max(0, saldos.CONVENCIONAL),
         qtdMacho: Math.max(0, saldos.SEXADO_MACHO),
         qtdFemea: Math.max(0, saldos.SEXADO_FEMEA),
+        precoConvencional: getPreco(lotesConv),
+        precoMacho: getPreco(lotesMacho),
+        precoFemea: getPreco(lotesFemea),
       }
     }).filter(t => t.qtdConvencional > 0 || t.qtdMacho > 0 || t.qtdFemea > 0)
 
@@ -174,9 +186,19 @@ export default async function catalogoRoutes(app: FastifyInstance) {
     }
 
     let itensTexto = ''
+    let valorTotal = 0
     for (const item of parsed.data.itens) {
       const touro = tourosMap.get(item.touroId)!
-      itensTexto += `• ${item.quantidade} doses - *${touro.nome}* (${tipoLabel[item.tipoSemen]})\n`
+      const lotesTipo = touro.lotes.filter(l => l.tipo === item.tipoSemen);
+      const loteRef = lotesTipo.find(x => x.quantidade > 0) || lotesTipo[0];
+      const preco = loteRef ? Number(loteRef.valorUnitario || 0) : 0;
+      valorTotal += preco * item.quantidade;
+      const precoStr = preco > 0 ? ` (R$ ${preco.toFixed(2).replace('.', ',')} cada)` : '';
+      itensTexto += `• ${item.quantidade} doses - *${touro.nome}* (${tipoLabel[item.tipoSemen]})${precoStr}\n`
+    }
+    
+    if (valorTotal > 0) {
+      itensTexto += `\n*Valor Total Estimado:* R$ ${valorTotal.toFixed(2).replace('.', ',')}\n`;
     }
 
     const fazendaLinha = fazenda ? `*Fazenda:* ${fazenda}\n` : ''
@@ -584,22 +606,24 @@ export default async function catalogoRoutes(app: FastifyInstance) {
       var firstAvailableType = '';
       var firstAvailableMax = 0;
 
+      var fmtMoeda = function(v) { return v > 0 ? ' - R$ ' + v.toFixed(2).replace('.', ',') : ''; };
+
       if (t.qtdConvencional > 0) {
-        selectOptions += '<option value="CONVENCIONAL">Convencional (' + t.qtdConvencional + ')</option>';
+        selectOptions += '<option value="CONVENCIONAL">Convencional (' + t.qtdConvencional + ')' + fmtMoeda(t.precoConvencional) + '</option>';
         if (!firstAvailableType) {
           firstAvailableType = 'CONVENCIONAL';
           firstAvailableMax = t.qtdConvencional;
         }
       }
       if (t.qtdMacho > 0) {
-        selectOptions += '<option value="SEXADO_MACHO">Sexado Macho (' + t.qtdMacho + ')</option>';
+        selectOptions += '<option value="SEXADO_MACHO">Sexado Macho (' + t.qtdMacho + ')' + fmtMoeda(t.precoMacho) + '</option>';
         if (!firstAvailableType) {
           firstAvailableType = 'SEXADO_MACHO';
           firstAvailableMax = t.qtdMacho;
         }
       }
       if (t.qtdFemea > 0) {
-        selectOptions += '<option value="SEXADO_FEMEA">Sexado Fêmea (' + t.qtdFemea + ')</option>';
+        selectOptions += '<option value="SEXADO_FEMEA">Sexado Fêmea (' + t.qtdFemea + ')' + fmtMoeda(t.precoFemea) + '</option>';
         if (!firstAvailableType) {
           firstAvailableType = 'SEXADO_FEMEA';
           firstAvailableMax = t.qtdFemea;

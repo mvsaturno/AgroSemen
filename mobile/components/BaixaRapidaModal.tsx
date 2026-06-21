@@ -23,6 +23,9 @@ export default function BaixaRapidaModal({ visible, onClose, touroNome, lotes, o
   const [saving, setSaving] = useState(false);
   const [selectedLoteId, setSelectedLoteId] = useState<string | null>(null);
   const [quantidade, setQuantidade] = useState(1);
+  const [valorCobrado, setValorCobrado] = useState('');
+  
+  const isPrestador = authConta?.perfil === 'PRESTADOR';
 
   // Seleciona o primeiro lote com saldo disponível por padrão
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function BaixaRapidaModal({ visible, onClose, touroNome, lotes, o
           usuarioId: authUser.id,
           clienteId: null, // Baixa rápida não tem cliente
           identificacaoVaca: '',
-          valorCobrado: 0,
+          valorCobrado: Number(valorCobrado) || 0,
           dataInseminacao: isoDate,
           isDirty: true,
           createdAt: isoDate,
@@ -184,6 +187,19 @@ export default function BaixaRapidaModal({ visible, onClose, touroNome, lotes, o
                   <Ionicons name="add" size={20} color="#4B5563" />
                 </TouchableOpacity>
               </View>
+            </View>
+          )}
+
+          {selectedLoteId && isPrestador && (
+            <View className="mb-8">
+              <Text className="font-bold text-gray-700 text-base mb-2">Valor Cobrado (R$ / dose)</Text>
+              <TextInput 
+                className="bg-white rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm" 
+                keyboardType="numeric"
+                placeholder="Ex: 50.00"
+                value={valorCobrado} 
+                onChangeText={setValorCobrado} 
+              />
             </View>
           )}
 
