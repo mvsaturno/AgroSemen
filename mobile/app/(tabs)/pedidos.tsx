@@ -203,7 +203,14 @@ export default function PedidosScreen() {
                 </View>
               </View>
 
-              <Text className="text-gray-500 text-sm mb-3">Feito em {formatDate(item.updatedAt)}</Text>
+              <Text className="text-gray-500 text-sm mb-2">Feito em {formatDate(item.updatedAt)}</Text>
+
+              {item.telefoneComprador && (
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="logo-whatsapp" size={16} color="#25D366" style={{ marginRight: 4 }} />
+                  <Text className="text-gray-700 text-sm font-medium">{item.telefoneComprador}</Text>
+                </View>
+              )}
 
               <View className="bg-gray-50 p-3 rounded-xl border border-gray-100 mb-4">
                 <Text className="font-bold text-gray-800">{item.touroNome} <Text className="font-normal text-gray-500">({item.touroRaca})</Text></Text>
