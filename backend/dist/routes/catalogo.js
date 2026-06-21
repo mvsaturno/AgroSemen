@@ -594,7 +594,7 @@ async function catalogoRoutes(app) {
         '    <div class="mt-4 space-y-3">' +
         '      <div>' +
         '        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Tipo de Sêmen</label>' +
-        '        <select id="type-select-' + t.id + '" onchange="onSemenTypeChange(\'' + t.id + '\')" class="w-full border border-slate-200 bg-slate-50/50 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all cursor-pointer">' +
+        '        <select id="type-select-' + t.id + '" onchange="onSemenTypeChange(&quot;' + t.id + '&quot;)" class="w-full border border-slate-200 bg-slate-50/50 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all cursor-pointer">' +
         '          ' + selectOptions +
         '        </select>' +
         '      </div>' +
@@ -605,16 +605,16 @@ async function catalogoRoutes(app) {
         '        </div>' +
         '        ' +
         '        <div class="flex items-center border border-slate-200 rounded-xl bg-slate-50/50 p-1">' +
-        '          <button onclick="adjustQty(\'' + t.id + '\', -1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">-</button>' +
+        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, -1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">-</button>' +
         '          <input type="number" id="qty-input-' + t.id + '" value="1" min="1" max="' + firstAvailableMax + '" class="w-10 text-center bg-transparent border-none text-sm font-bold text-slate-800 focus:ring-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" readonly>' +
-        '          <button onclick="adjustQty(\'' + t.id + '\', 1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">+</button>' +
+        '          <button onclick="adjustQty(&quot;' + t.id + '&quot;, 1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 rounded-lg transition-colors font-extrabold text-base select-none">+</button>' +
         '        </div>' +
         '      </div>' +
         '    </div>' +
         '  </div>' +
         '</div>' +
         '<div class="px-5 pb-5 pt-2">' +
-        '  <button onclick="addItemToCart(\'' + t.id + '\')" class="w-full bg-slate-900 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 group hover:shadow-md hover:shadow-primary-100">' +
+        '  <button onclick="addItemToCart(&quot;' + t.id + '&quot;)" class="w-full bg-slate-900 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 group hover:shadow-md hover:shadow-primary-100">' +
         '    <svg class="w-4.5 h-4.5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
         '      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>' +
         '    </svg>' +
