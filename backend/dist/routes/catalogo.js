@@ -189,12 +189,53 @@ async function catalogoRoutes(app) {
     app.get('/c/:token', async (request, reply) => {
         reply.header('Content-Type', 'text/html; charset=utf-8');
         const { token } = request.params;
+        const link = await database_1.default.linkCatalogo.findUnique({
+            where: { token },
+            include: { conta: true }
+        });
+        if (!link || link.expiresAt < new Date()) {
+            return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo Expirado - AgroSêmen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans text-slate-800">
+  <div class="max-w-md w-full bg-white rounded-3xl border border-slate-200/80 shadow-xl p-8 text-center">
+    <div class="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-sm">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+    </div>
+    <h3 class="font-extrabold text-xl text-slate-900 tracking-tight">Catálogo expirado ou inválido</h3>
+    <p class="text-sm text-slate-500 mt-2 leading-relaxed">Este catálogo não está mais ativo ou o link expirou (validade de 24 horas). Solicite um novo link ao administrador.</p>
+  </div>
+</body>
+</html>`;
+        }
+        const nomeConta = link.conta.nome;
         return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo de Touros - AgroSêmen</title>
+  <title>Catálogo de Touros - ${nomeConta} - AgroSêmen</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -261,7 +302,7 @@ async function catalogoRoutes(app) {
           </svg>
         </div>
         <div>
-          <h1 id="header-conta-name" class="font-extrabold text-slate-900 text-base leading-tight tracking-tight">Carregando...</h1>
+          <h1 id="header-conta-name" class="font-extrabold text-slate-900 text-base leading-tight tracking-tight">${nomeConta}</h1>
           <p class="text-xs text-slate-500 font-medium">Catálogo de Reprodutores</p>
         </div>
       </div>
@@ -292,7 +333,7 @@ async function catalogoRoutes(app) {
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           Catálogo Online
         </span>
-        <h2 id="hero-title" class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">Carregando catálogo oficial...</h2>
+        <h2 id="hero-title" class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">Carregando o catálogo de ${nomeConta}...</h2>
         <p class="mt-2 text-slate-300 text-sm sm:text-base">Adicione sêmens de cada reprodutor à sua sacola, preencha seus dados de contato e envie o pedido diretamente via WhatsApp.</p>
         <p class="mt-4 text-xs text-slate-400 flex items-center gap-1.5">
           <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -343,13 +384,13 @@ async function catalogoRoutes(app) {
       <div class="mt-8 flex flex-col gap-3">
         <a id="btn-send-whatsapp" target="_blank" href="#" class="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold py-3.5 px-6 rounded-2xl transition shadow-md shadow-green-100 flex items-center justify-center gap-2 text-base">
           <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
-            <path d="M12.031 2C6.51 2 2.03 6.48 2.03 12c0 2.159.57 4.218 1.64 6.079L2 22l4.139-1.079c1.78.96 3.82 1.48 5.89 1.48 5.52 0 10-4.48 10-10 0-2.659-1.04-5.15-2.93-7.04C17.18 3.04 14.69 2 12.031 2zm0 2c2.12 0 4.119.82 5.63 2.33 1.51 1.51 2.339 3.51 2.339 5.67 0 4.41-3.59 8-8 8-1.83 0-3.59-.42-5.18-1.25L4.5 19.5l.8-2.64C4.38 15.34 3.97 13.7 3.97 12c0-4.41 3.59-8 8-8zm-2.929 4c-.17 0-.399.07-.599.29-.2.21-.77.75-.77 1.83s.78 2.12.89 2.27c.11.15 1.52 2.33 3.7 3.27.52.22.93.36 1.25.46.52.17 1 .14 1.37.09.42-.06 1.289-.53 1.469-1.03.18-.5.18-.94.13-1.03-.05-.09-.18-.15-.39-.25-.2-.1-1.21-.6-1.39-.67-.19-.07-.32-.1-.46.1-.14.2-.54.67-.66.81-.12.14-.24.16-.45.06-.21-.1-1-.37-1.9-1.18-.7-.62-1.17-1.39-1.31-1.63-.14-.24-.01-.37.09-.47.1-.09.21-.24.31-.36.1-.12.14-.21.21-.35.07-.14.03-.26-.02-.36-.05-.1-.46-1.11-.63-1.52-.16-.4-.35-.34-.48-.35-.12 0-.27-.01-.42-.01z"/>
+            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 11.966.01c3.178.001 6.169 1.24 8.419 3.496 2.25 2.256 3.489 5.242 3.487 8.428-.005 6.618-5.34 11.955-11.91 11.955a11.9 11.9 0 0 1-5.698-1.448zm6.549-2.906c.032.019.262.155.291.171a9.88 9.88 0 0 0 5.071 1.402c5.529 0 10.025-4.484 10.03-10.012.002-2.678-1.041-5.197-2.936-7.096A10.0 10.0 0 0 0 11.97 2.01c-5.527 0-10.02 4.485-10.025 10.013a9.92 9.92 0 0 0 1.527 5.176c.018.03.1.164.081.12l-1.011 3.693 3.792-.99c.04-.01.166.064.225.1a9.8 9.8 0 0 0 5.053 1.396z"/>
           </svg>
           Enviar via WhatsApp
         </a>
         <button onclick="shareOrder()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center gap-2 text-base">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 10.742l4.636-2.318m0 0a3 3 0 10-4.636-2.318m4.636 2.318a3 3 0 120 4.636m-4.636-2.318a3 3 0 110-4.636m3.57 8.73h.01M12 21a9 9 0 110-18 9 9 0 010 18z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 10.742l4.636-2.318m-4.636 2.318l4.636 2.318M7 7h.01M7 17h.01M17 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
           Compartilhar Pedido
         </button>
@@ -427,33 +468,57 @@ async function catalogoRoutes(app) {
     var cart = [];
     var orderResponse = null;
 
-    // Apply WhatsApp format to Input
-    document.getElementById('buyer-whatsapp').addEventListener('input', function (e) {
-      var v = e.target.value.replace(/\\D/g, '');
-      if (v.length > 11) v = v.substring(0, 11);
-      
-      var formatted = '';
-      if (v.length > 0) {
-        formatted = '(' + v.substring(0, 2);
-        if (v.length > 2) {
-          formatted += ') ' + v.substring(2, 7);
-          if (v.length > 7) {
-            formatted += '-' + v.substring(7, 11);
+    function init() {
+      console.log('init: Starting initialization...');
+      var whatsappInput = document.getElementById('buyer-whatsapp');
+      if (whatsappInput) {
+        console.log('init: whatsapp input element found.');
+        whatsappInput.addEventListener('input', function (e) {
+          var v = e.target.value.replace(/[^0-9]/g, '');
+          if (v.length > 11) v = v.substring(0, 11);
+          
+          var formatted = '';
+          if (v.length > 0) {
+            formatted = '(' + v.substring(0, 2);
+            if (v.length > 2) {
+              formatted += ') ' + v.substring(2, 7);
+              if (v.length > 7) {
+                formatted += '-' + v.substring(7, 11);
+              }
+            }
           }
-        }
+          e.target.value = formatted;
+        });
+      } else {
+        console.warn('init: whatsapp input element NOT found.');
       }
-      e.target.value = formatted;
-    });
+      console.log('init: calling load()...');
+      load();
+    }
+
+    console.log('script: script evaluation started. readyState:', document.readyState);
+    if (document.readyState === 'loading') {
+      console.log('script: DOM still loading, adding DOMContentLoaded listener...');
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      console.log('script: DOM ready, calling init() directly...');
+      init();
+    }
 
     async function load() {
+      console.log('load: Loading catalog...');
       try {
+        console.log('load: Fetching API for token:', token);
         var res = await fetch('/catalogo/api/' + token);
+        console.log('load: Fetch response received. ok:', res.ok, 'status:', res.status);
         if (!res.ok) {
           var e = await res.json();
+          console.error('load: API response not ok:', e);
           document.getElementById('catalog-section').innerHTML = '<div class="p-8 text-center text-red-600 font-bold mt-10 bg-red-50 rounded-xl mx-4 shadow-sm border border-red-100">' + (e.error || 'Erro ao carregar') + '</div>';
           return;
         }
         var data = await res.json();
+        console.log('load: JSON parsed successfully:', data);
         tourosData = data.touros;
         
         document.getElementById('header-conta-name').innerText = data.conta.nome;
@@ -463,14 +528,18 @@ async function catalogoRoutes(app) {
         var emptyState = document.getElementById('empty-state');
         
         if (tourosData.length === 0) {
+          console.log('load: No bulls available in catalog.');
           grid.innerHTML = '';
           emptyState.classList.remove('hidden');
         } else {
+          console.log('load: Rendering', tourosData.length, 'bulls.');
           emptyState.classList.add('hidden');
           grid.innerHTML = tourosData.map(t => renderCard(t)).join('');
         }
         updateCartUI();
+        console.log('load: Catalog rendering complete.');
       } catch (err) {
+        console.error('load: Error during catalog load:', err);
         document.getElementById('catalog-section').innerHTML = '<div class="p-8 text-center text-red-600 font-bold mt-10 bg-red-50 rounded-xl mx-4 shadow-sm border border-red-100">Erro de conexão ao carregar o catálogo.</div>';
       }
     }
@@ -892,8 +961,6 @@ async function catalogoRoutes(app) {
       
       load();
     }
-
-    load();
   </script>
 </body>
 </html>`;
